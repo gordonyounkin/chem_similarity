@@ -59,3 +59,52 @@ chemical_similarity <- function(sampsCompsStand, pairwise.comps) {
   }
   return(pairwise.spp)
 }
+
+chemical_similarity_single <- function(species_1, species_2, sampsCompsStand, pairwise.comps) {
+  spp1 = species_1
+  i_compounds = which(sampsCompsStand[spp1,] != 0)
+    spp2 = species_2
+    j_compounds = which(sampsCompsStand[spp2,] != 0)
+    if(length(i_compounds) == 0 | length(j_compounds) == 0) {
+      return(0)
+    }
+    else {
+      ij_compounds = sort(unique(c(i_compounds, j_compounds)))
+      i_tics = sampsCompsStand[spp1, ij_compounds]
+      j_tics = sampsCompsStand[spp2, ij_compounds]
+      shared_tics = sapply(1:length(ij_compounds), function(x) min(i_tics[x], j_tics[x]))
+      i_tics = i_tics - shared_tics
+      j_tics = j_tics - shared_tics
+      similarity = sum(shared_tics)
+      current_compounds = data.matrix(pairwise.comps[names(i_tics),names(j_tics)])
+      while(sum(i_tics) > 0.0001 & sum(j_tics) > 0.0001) {
+        i_tics = i_tics[, i_tics > 0.0001, drop = FALSE]
+        j_tics = j_tics[, j_tics > 0.0001, drop = FALSE]
+        if(length(i_tics) < 1 | length(j_tics) < 1) break
+        current_compounds = data.matrix(pairwise.comps[names(i_tics),names(j_tics)])
+        current_cos = max(current_compounds)
+        if(current_cos == min(current_compounds)) {
+          similarity = similarity + min(sum(i_tics), sum(j_tics)) * current_cos
+          break
+        }
+        current_comp_locations = which(current_compounds == current_cos)
+        i.numbers = current_comp_locations %% nrow(current_compounds)
+        i.numbers[i.numbers==0] = nrow(current_compounds)
+        j.numbers = ceiling(current_comp_locations/nrow(current_compounds))
+        
+        i.repeats = sapply(1:length(i.numbers), function(x) sum(i.numbers == i.numbers[x]))
+        j.repeats = sapply(1:length(j.numbers), function(x) sum(j.numbers == j.numbers[x]))
+        ij.min = sapply(1:length(i.numbers), function(x) min(i_tics[i.numbers[x]]/i.repeats[x], j_tics[j.numbers[x]]/j.repeats[x]))
+        
+        similarity = similarity + sum(ij.min * current_cos)
+        
+        for(k in 1:length(i.numbers)) {
+          i_tics[i.numbers[k]] = i_tics[i.numbers[k]] - ij.min[k]
+          j_tics[j.numbers[k]] = j_tics[j.numbers[k]] - ij.min[k]
+        }
+        current_compounds[current_comp_locations] <- 0
+      }
+  return(similarity)
+    }}
+
+
