@@ -21,7 +21,7 @@ extract.peakdata <- function(files, MSlevel) {
 avg.msms.spec <- function(files, peak.data, rt, mz) {
   scans_to_merge <- peak.data[abs(peak.data$retentionTime - rt*60) <= 20 & abs(peak.data$precursorMZ - mz) <= 0.01, c("acquisitionNum", "file_idx"), drop = FALSE]
   if(nrow(scans_to_merge) < 1) return(NULL)
-  spec1 <- lapply(1:nrow(scans_to_merge), function(j) peaks(openMSfile(files[scans_to_merge$file_idx[j]]),scans_to_merge$acquisitionNum[j]))
+  spec1 <- lapply(1:nrow(scans_to_merge), function(j) mzR::peaks(openMSfile(files[scans_to_merge$file_idx[j]]),scans_to_merge$acquisitionNum[j]))
   spec2 <- do.call(rbind, spec1)
   spec3 <- spec2[order(spec2[,2], decreasing = T),]
   row.names(spec3) <- 1:nrow(spec3)
