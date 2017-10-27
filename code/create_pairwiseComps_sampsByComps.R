@@ -57,7 +57,8 @@ make_pairwisecomps <- function(network_filepath, through_network = TRUE) {
 # if you want to remove some samples or species, specify them in samps_to_remove
 
 make_sampsByCompounds <- function(compound_tic_table_path, samps_to_remove = character(0), by_species = FALSE) {
-  compound_tic_table <- read.csv(compound_tic_table_path) 
+  if(is.character(compound_tic_table_path)) compound_tic_table <- read.csv(compound_tic_table_path)
+  else compound_tic_table <- compound_tic_table_path
   sampsByCompounds <- dcast(compound_tic_table, compound_number  ~ compound_sample, value.var = "TIC")
 
   if(by_species == TRUE) {
