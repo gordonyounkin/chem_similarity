@@ -1,3 +1,8 @@
+# load chem similarity file
+pairwise.spp <- read.csv("./results/2017_10_27_all_samples_chem_similarity_with_tyrosine.csv")
+row.names(pairwise.spp) <- pairwise.spp$X
+pairwise.spp <- pairwise.spp[,names(pairwise.spp)!="X"]
+
 # create chem similarity tree from similarity matrix (similarity matrix should be named 'pairwise.spp')
 library(vegan)
 library(pvclust)
@@ -23,8 +28,10 @@ method <- c("single","ward.D","complete", "centroid", "median")
 mhc<- method[which.max(c(a,b,c,d,e))]
 result_samples <- pvclust(pairwise.spp, method.hclust=mhc, method.dist="correlation", use.cor="pairwise.complete.obs", nboot=1000,parallel=T)
 
-# save tree--make sure to give it a name
+# save as .pdf--make sure to give it a name
 dev.new()
 plot(result_samples, cex=1.66, cex.pv=1, lwd=1, float = 0.003)
-dev.copy2pdf(file = "K:/DDA/all_inga/2017_10_10_chem_dendrogram_with_tyrosine.pdf", width = 100, height = 20)
+dev.copy2pdf(file = "./results/2017_10_27_all_samps_chem_dendrogram_with_tyrosine.pdf", width = 500, height = 20)
 dev.off()
+
+# save as .tre
