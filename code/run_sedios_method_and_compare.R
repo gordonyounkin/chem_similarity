@@ -135,7 +135,7 @@ row.names(pairwise.spp.new) <- pairwise.spp.new$X
 pairwise.spp.new <- pairwise.spp.new[,names(pairwise.spp.new) != "X"]
 row.names(pairwise.spp.sedio.thru) <- pairwise.spp.sedio.thru$X
 pairwise.spp.sedio.thru <- pairwise.spp.sedio.thru[,names(pairwise.spp.sedio.thru) != "X"]
-pairwise.spp.sedio.thru[1:5,1:5]
+
 
 method.comparison <- data.frame("species" = character(0), "new" = numeric(0), "sedio" = numeric(0),"sedio_not_thru" = numeric(0), "ncomps_a" = numeric(0), "ncomps_b" = numeric(0), "diag_a" = numeric(0), "diag_b" = numeric(0), stringsAsFactors = FALSE)
 current_row <- 0
