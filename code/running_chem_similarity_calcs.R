@@ -5,7 +5,7 @@ source("./code/chem_similarity_function.R")
 pairwise.comps.sap <- make_pairwisecomps("K:/DDA/all_inga/sap_network_merged_spec/")
 pairwise.comps.phen <- make_pairwisecomps("K:/DDA/all_inga/phen_network_merged_spec/")
 
-sampsByCompounds <- make_sampsByCompounds("K:/DDA/all_inga/compound_tic_2017_08_02.csv", samps_to_remove = c("COJR", "Zygl"), by_species = TRUE)
+sampsByCompounds <- make_sampsByCompounds("K:/DDA/all_inga/compound_tic_2017_08_02.csv", samps_to_remove = c("COJR", "Zygl"), by_species = FALSE)
 
 sampsByCompoundsSap <- sampsByCompounds[, names(sampsByCompounds) %in% names(pairwise.comps.sap)]
 sampsByCompoundsPhen <- sampsByCompounds[, names(sampsByCompounds) %in% names(pairwise.comps.phen)]
