@@ -2,53 +2,84 @@ library(RMySQL)
 library(splitstackshape)
 source("./code/average_multiple_msms_scans.R")
 
-compound_pcid <- read.csv("K:/DDA/all_inga/compound_pcid_2017_08_01.csv")
-pcid <- read.csv("K:/DDA/all_inga/all_pc_id_2017_08_01.csv")
-pc_id_spec2 <- merge(pcid, compound_pcid, by = "PC_ID", all.x = TRUE)
-head(pc_id_spec2,30)
+compound_table <- read.csv("./data/filled_compound_table_2017_11_15.csv")
+compound_table$sample <- as.character(compound_table$sample)
+compound_table$species <-  sapply(1:nrow(compound_table), function(x) unlist(strsplit(compound_table$sample[x], split="_"))[1])
+compound_table_2 <- aggregate(compound_table$TIC, by=list(compound_table$species, compound_table$compound), FUN=mean)
+names(compound_table_2) <- c("species","compound","TIC")
 
-# select highest percent TIC for each PC_ID
-pc_ids <- unique(pc_id_spec2$PC_ID)
-pc_id_spec <- pc_id_spec2[-(1:nrow(pc_id_spec2)), ]
-for(i in 1:length(pc_ids)) {
-  pc_id_i <- pc_id_spec2[pc_id_spec2$PC_ID == pc_ids[i], ]
-  pc_id_spec <- rbind(pc_id_spec, pc_id_i[which.max(pc_id_i$"Percent_TIC"), ])
-}
-pc_id_spec$MZ_RT <- as.character(pc_id_spec$MZ_RT)
-pc_id_spec$MS_MS_Spec_ID <- as.character(pc_id_spec$MS_MS_Spec_ID)
+compound_feature <- read.csv("./data/compound_feature_table.csv")
+compound_max_feature <- aggregate(compound_feature$TIC, by=list(Category=compound_feature$compound_number),FUN=max)
+names(compound_max_feature) <- c("compound","TIC_max")
+compound_max_feature_2 <- merge(compound_max_feature, compound_feature, by.x=c("compound","TIC_max"), by.y=c("compound_number","TIC"))
 
-# if available, get spectrum for each pc_id
-species <- unique(pc_id_spec$species)
-msms_spec <- vector("list", nrow(pc_id_spec))
+compound_table_3 <- merge(compound_table_2, compound_max_feature_2, by="compound", all.x = FALSE)
+head(compound_table_3)
+
+
+# if available, get spectrum for each compound
+species <- unique(compound_table_3$species)
+msms_spec <- vector("list", max(compound_table_3$compound))
+
 for(i in 1:length(species)) {
+  print(species[i])
   if(exists("mydb")) dbDisconnect(mydb)
   mydb = dbConnect(MySQL(), user='u6009010', password='3UaUhf7a', dbname='inga_2015_06_01', host='mysql.chpc.utah.edu')
   files <- dbGetQuery(mydb, paste("SELECT File_Name, Project_Name FROM UPLC_Results WHERE species_code = '",species[i],"' AND Project_Name LIKE '%DDA%'", sep=""))
   if(nrow(files) < 1) next
   file.paths <- sapply(1:nrow(files), function(x) paste("K:/Lab_Map/Database/2015_Relational_DB/DATA_STORAGE/UPLC_MS_DATA/Data_Not_Active_Projects_etc/10_Converted_Data/",files$Project_Name[x],"/mzXML/Sample/",files$File_Name[x],".mzXML", sep=""))
   peakdata <- extract.peakdata(file.paths, MSlevel = 2)
-  spec_i <- pc_id_spec[pc_id_spec$species == species[i], ]
+  spec_i <- compound_table_3[compound_table_3$species == species[i], ]
   for(k in 1:nrow(spec_i)) {
-    print(as.character(spec_i$PC_ID[k]))
-    rt_k <- as.numeric(unlist(strsplit(spec_i$MZ_RT[k], split = "_"))[2])
-    mz_k <- as.numeric(unlist(strsplit(spec_i$MZ_RT[k], split = "_"))[1])
+    rt_k <- spec_i$rt[k]
+    mz_k <- spec_i$mz[k]
     current_spec <- avg.msms.spec(file.paths, peakdata, rt = rt_k, mz = mz_k)
     if(is.null(current_spec)) next
     if(nrow(current_spec) < 5) next
-    msms_spec[[as.numeric(row.names(spec_i)[k])]] <- current_spec
-    pc_id_spec[row.names(spec_i)[k], "MS_MS_Spec_ID"] <- as.numeric(row.names(spec_i)[k])
-    pc_id_spec[row.names(spec_i)[k], "MSMS_TIC"] <- sum(current_spec[,2])
+    if(max(msms_spec[[spec_i$compound[k]]][,2]) > max(current_spec[,2])) next
+    msms_spec[[spec_i$compound[k]]] <- current_spec
   }
 }
 
-# choose spectrum with highest TIC per compound
-pc_id_spec_2 <- pc_id_spec[pc_id_spec$MS_MS_Spec_ID != "Null", ]
+# which compounds don't have associated spectra?
+no_spec <- which(sapply(1:length(msms_spec), function(x) is.null(msms_spec[[x]])))
+no_spec <- no_spec[no_spec > 2000]
+for(i in no_spec) {
+  print(i)
+  compound_table_i <- compound_table_3[compound_table_3$compound == i,]
+  if(nrow(compound_table_i) == 0) next
+  features_i <- compound_feature[compound_feature$compound_number == i,]
+  features_i$relTIC <- features_i$TIC / max(features_i$TIC)
+  features_i <- features_i[features_i$relTIC > 0.33 & features_i$relTIC != 1,]
+  if(nrow(features_i) == 0) next 
+  features_i <- features_i[order(features_i$relTIC, decreasing=TRUE),]
+  compound_matched = FALSE
+  for(j in 1:length(compound_table_i$species)) {
+    curr_species <- compound_table_i$species[j]
+    if(exists("mydb")) dbDisconnect(mydb)
+    mydb = dbConnect(MySQL(), user='u6009010', password='3UaUhf7a', dbname='inga_2015_06_01', host='mysql.chpc.utah.edu')
+    files <- dbGetQuery(mydb, paste("SELECT File_Name, Project_Name FROM UPLC_Results WHERE species_code = '",curr_species,"' AND Project_Name LIKE '%DDA%'", sep=""))
+    if(nrow(files) < 1) next
+    file.paths <- sapply(1:nrow(files), function(x) paste("K:/Lab_Map/Database/2015_Relational_DB/DATA_STORAGE/UPLC_MS_DATA/Data_Not_Active_Projects_etc/10_Converted_Data/",files$Project_Name[x],"/mzXML/Sample/",files$File_Name[x],".mzXML", sep=""))
+    peakdata <- extract.peakdata(file.paths, MSlevel = 2)
+    for(k in 1:nrow(features_i)) {
+      rt_k <- features_i$rt[k]
+      mz_k <- features_i$mz[k]
+      current_spec <- avg.msms.spec(file.paths, peakdata, rt = rt_k, mz = mz_k)
+      if(is.null(current_spec)) next
+      if(nrow(current_spec) < 5) next
+      msms_spec[[features_i$compound_number[k]]] <- current_spec
+      compound_matched = TRUE
+      break
+    }
+    if(compound_matched == TRUE) break
+  }
+}
 
 # save msms spec files
-saveRDS(pc_id_spec_2, "./results/pcid_spectra_ids_2017_09_22.rds")
-saveRDS(msms_spec, "./results/msms_spectra_list_2017_09_22.rds")
+saveRDS(msms_spec, "./results/msms_spectra_list_2017_11_15.rds")
 
-
-
+sum(sapply(1:length(msms_spec), function(x) !is.null(msms_spec[[x]])))
+compound_feature_2[compound_feature_2$compound == 4,]
 
 

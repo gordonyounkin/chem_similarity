@@ -2,10 +2,10 @@ library(RMySQL)
 source("./code/create_pairwiseComps_sampsByComps.R")
 source("./code/chem_similarity_function.R")
 
-pairwise.comps.sap <- make_pairwisecomps("K:/DDA/all_inga/sap_network_merged_spec/")
-pairwise.comps.phen <- make_pairwisecomps("K:/DDA/all_inga/phen_network_merged_spec/")
+pairwise.comps.sap <- make_pairwisecomps("./data/saponin_network_2017_11_16/")
+pairwise.comps.phen <- make_pairwisecomps("./data/phenolics_network_2017_11_16")
 
-sampsByCompounds <- make_sampsByCompounds("K:/DDA/all_inga/compound_tic_2017_08_02.csv", samps_to_remove = c("COJR", "Zygl"), by_species = FALSE)
+sampsByCompounds <- make_sampsByCompounds("./data/filled_compound_table_2017_11_16.csv", by_species = FALSE)
 
 sampsByCompoundsSap <- sampsByCompounds[, names(sampsByCompounds) %in% names(pairwise.comps.sap)]
 sampsByCompoundsPhen <- sampsByCompounds[, names(sampsByCompounds) %in% names(pairwise.comps.phen)]
