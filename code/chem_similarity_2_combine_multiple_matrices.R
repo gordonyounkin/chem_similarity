@@ -1,8 +1,9 @@
 library(RMySQL)
+library(dplyr)
 source("./code/create_pairwiseComps_sampsByComps.R")
 source("./code/chem_similarity_function.R")
 
-# load sampsByCompounds files
+# load pairwise.comps/sampsByCompounds files
 pairwise.comps.sap <- make_pairwisecomps("K:/DDA/all_inga/sap_network_merged_spec/")
 pairwise.comps.phen <- make_pairwisecomps("K:/DDA/all_inga/phen_network_merged_spec/")
 
@@ -12,10 +13,10 @@ sampsByCompoundsSap <- sampsByCompounds[,names(sampsByCompounds) %in% names(pair
 sampsByCompoundsPhen <- sampsByCompounds[,names(sampsByCompounds) %in% names(pairwise.comps.phen)]
 
 # load any similarity files you want to combine
-chem_similarity_phen <- read.csv("./results/phen_sim_all_samps_2017_10_26.csv")
+chem_similarity_phen <- read.csv("./data/BCI_test/BCI_phen_sim_filled_comps_LOG_2017_11_19.csv")
 row.names(chem_similarity_phen) <- chem_similarity_phen$X
 chem_similarity_phen <- chem_similarity_phen[,names(chem_similarity_phen) != "X"]
-chem_similarity_sap <- read.csv("./results/sap_sim_all_samps_2017_10_26.csv")
+chem_similarity_sap <- read.csv("./data/BCI_test/BCI_sap_sim_filled_comps_LOG_2017_11_19.csv")
 row.names(chem_similarity_sap) <- chem_similarity_sap$X
 chem_similarity_sap <- chem_similarity_sap[,names(chem_similarity_sap) != "X"]
 
@@ -37,18 +38,26 @@ AND LCASE(NOTES) NOT LIKE '%drop%') a
                       GROUP BY a.species_code")
 
 # calculate percent each species has in phenolics/saponins/tryosine
-comp.class.pcts <- data.frame("sample" = row.names(sampsByCompounds), "phenSumTIC" = sapply(1:nrow(sampsByCompoundsPhen), function(x) sum(sampsByCompoundsPhen[x,])), "sapSumTIC" = sapply(1:nrow(sampsByCompoundsSap), function(x) sum(sampsByCompoundsSap[x,])), "species_code" = sapply(1:nrow(sampsByCompoundsPhen), function(x) unlist(strsplit(row.names(sampsByCompoundsPhen)[x], split = "_"))[1]))
+comp.class.pcts <- data.frame("sample" = row.names(sampsByCompounds), 
+                              "phenSumTIC" = sapply(1:nrow(sampsByCompoundsPhen), function(x) sum(sampsByCompoundsPhen[x,])), 
+                              "sapSumTIC" = sapply(1:nrow(sampsByCompoundsSap), function(x) sum(sampsByCompoundsSap[x,])), 
+                              "species_code" = sapply(1:nrow(sampsByCompoundsPhen), 
+                                                      function(x) unlist(strsplit(row.names(sampsByCompoundsPhen)[x], split = "_"))[1]),
+                              stringsAsFactors=FALSE)
+comp.class.pcts$logPhen <- log(comp.class.pcts$phenSumTIC)
+comp.class.pcts$logSap <- log(comp.class.pcts$sapSumTIC)
 comp.class.pcts$phenTICpct <- comp.class.pcts$phenSumTIC / (comp.class.pcts$phenSumTIC + comp.class.pcts$sapSumTIC)
 comp.class.pcts$sapTICpct <- comp.class.pcts$sapSumTIC / (comp.class.pcts$phenSumTIC + comp.class.pcts$sapSumTIC)
-comp.class.pcts <- merge(comp.class.pcts, extr.pct, by = "species_code", all.x = TRUE, all.y = FALSE)
-comp.class.pcts <- merge(comp.class.pcts, tyr.pct, by = "species_code", all.x = TRUE, all.y = FALSE)
+comp.class.pcts <- join(comp.class.pcts, extr.pct, by="species_code", type="left", match="all")
+comp.class.pcts <- join(comp.class.pcts, tyr.pct, by="species_code", type="left", match="all")
 comp.class.pcts$percent_tyrosine[is.na(comp.class.pcts$percent_tyrosine)] <- 0
 comp.class.pcts$tyr.final.pct <- comp.class.pcts$percent_tyrosine / (comp.class.pcts$percent_extracted * 0.01 + comp.class.pcts$percent_tyrosine)
 comp.class.pcts$phensap.final.pct <- comp.class.pcts$percent_extracted * 0.01 / (comp.class.pcts$percent_extracted * 0.01 + comp.class.pcts$percent_tyrosine)
 comp.class.pcts$phen.final.pct <- comp.class.pcts$phenTICpct * comp.class.pcts$phensap.final.pct
 comp.class.pcts$sap.final.pct <- comp.class.pcts$sapTICpct * comp.class.pcts$phensap.final.pct
 
-write.csv(comp.class.pcts, "K:/GY_LAB_FILES//github_repositories/chem_similarity/results/phen_sap_tyr_sample_percents.csv")
+
+write.csv(comp.class.pcts, "./results/phen_sap_tyr_sample_percents_no_LOG_2017_11_17.csv")
 
 pairwise.phen.percent <- outer(comp.class.pcts$phen.final.pct, comp.class.pcts$phen.final.pct, FUN = function(X,Y) (X+Y)/2)
 pairwise.phen.1mindiff <- outer(comp.class.pcts$phen.final.pct, comp.class.pcts$phen.final.pct, FUN = function(X,Y) 1-abs(X-Y))
@@ -61,24 +70,26 @@ pairwise.tyr.1mindiff <- outer(comp.class.pcts$tyr.final.pct, comp.class.pcts$ty
 pairwise.tyr.min <- outer(comp.class.pcts$tyr.final.pct, comp.class.pcts$tyr.final.pct, FUN = function(X,Y) sapply(1:length(X), function(i) min(X[i],Y[i])))
 
 pairwise.spp <- chem_similarity_phen*pairwise.phen.percent*pairwise.phen.1mindiff + chem_similarity_sap*pairwise.sap.percent*pairwise.sap.1mindiff + pairwise.tyr.percent*pairwise.tyr.1mindiff
+write.csv(pairwise.spp, "./data/BCI_test/BCI_filled_sim_matrix_COMBINEWITHLOG_2017_11_17.csv")
 
 # try not doing 1-difference when combining compound classes...it seems to be splitting some species
 pairwise.spp.mincompclass <- chem_similarity_phen*pairwise.phen.min + chem_similarity_sap*pairwise.sap.min + pairwise.tyr.min
-write.csv(pairwise.spp.mincompclass, "K:/GY_LAB_FILES/github_repositories/chem_similarity/results/2017_10_31_pairwise.samps.mincompclass.csv")
+write.csv(pairwise.spp.mincompclass, "./data/BCI_test/BCI_sim_matrix_MINCOMP.csv")
 
 # try just using average of investment in each compound class
 pairwise.spp.avgcompclass <- chem_similarity_phen*pairwise.phen.percent + chem_similarity_sap*pairwise.sap.percent + pairwise.tyr.percent
 write.csv(pairwise.spp.avgcompclass, "K:/GY_LAB_FILES/github_repositories/chem_similarity/results/2017_10_31_pairwise.samps.avgcompclass.csv")
 
+pairwise.spp <- pairwise.spp.mincompclass
 dbDisconnect(mydb)
 mydb = dbConnect(MySQL(), user='u6009010', password='3UaUhf7a', dbname='inga_2015_06_01', host='mysql.chpc.utah.edu')
-for(i in 1:nrow(pairwise.spp.avgcompclass)) {
-  species_name <- dbGetQuery(mydb, paste("SELECT Species_name from Species WHERE species_code = '", unlist(strsplit(row.names(pairwise.spp.avgcompclass)[i], split = "_"))[1], "'", sep = ""))
-  names(pairwise.spp.avgcompclass)[i] <- paste(names(pairwise.spp.avgcompclass)[i], species_name, sep = "_")
-  row.names(pairwise.spp.avgcompclass)[i] <- paste(row.names(pairwise.spp.avgcompclass)[i], species_name, sep = "_")
+for(i in 1:nrow(pairwise.spp)) {
+  species_name <- dbGetQuery(mydb, paste("SELECT Species_name from Species WHERE species_code = '", unlist(strsplit(row.names(pairwise.spp)[i], split = "_"))[1], "'", sep = ""))
+  names(pairwise.spp)[i] <- paste(names(pairwise.spp)[i], species_name, sep = "_")
+  row.names(pairwise.spp)[i] <- paste(row.names(pairwise.spp)[i], species_name, sep = "_")
 }
 
-write.csv(pairwise.spp, "./results/2017_10_27_all_samples_chem_similarity_with_tyrosine.csv", row.names = TRUE)
+write.csv(pairwise.spp, "./results/2017_11_01_all_samples_chem_similarity_LOG.csv", row.names = TRUE)
 
 # create chem similarity tree from similarity matrix (similarity matrix should be named 'pairwise.spp')
 library(vegan)
@@ -108,7 +119,7 @@ result_samples <- pvclust(pairwise.spp, method.hclust=mhc, method.dist="correlat
 # save tree--make sure to give it a name
 dev.new()
 plot(result_samples, cex=1.66, cex.pv=1, lwd=1, float = 0.003)
-dev.copy2pdf(file = "K:/DDA/all_inga/2017_10_10_chem_dendrogram_with_tyrosine.pdf", width = 100, height = 20)
+dev.copy2pdf(file = "./data/BCI_test/BCI_chem_dendrogram_filled_MINCOMPCLASS.pdf", width = 50, height = 20)
 dev.off()
 
 

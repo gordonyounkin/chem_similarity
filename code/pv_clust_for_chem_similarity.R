@@ -1,5 +1,5 @@
 # load chem similarity file
-pairwise.spp <- read.csv("./results/2017_10_27_all_samples_chem_similarity_with_tyrosine.csv")
+pairwise.spp <- read.csv("./results/2017_10_31_pairwise.samps.avgcompclass.csv")
 row.names(pairwise.spp) <- pairwise.spp$X
 pairwise.spp <- pairwise.spp[,names(pairwise.spp)!="X"]
 
@@ -31,7 +31,7 @@ result_samples <- pvclust(pairwise.spp, method.hclust=mhc, method.dist="correlat
 # save as .pdf--make sure to give it a name
 dev.new()
 plot(result_samples, cex=1.66, cex.pv=1, lwd=1, float = 0.003)
-dev.copy2pdf(file = "./results/2017_10_27_all_samps_chem_dendrogram_with_tyrosine.pdf", width = 500, height = 20)
+dev.copy2pdf(file = "./data/BCI_test/BCI_chem_dendrogram_filled_LOG.pdf", width = 50, height = 20)
 dev.off()
 
 # save as .tre

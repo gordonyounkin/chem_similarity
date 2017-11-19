@@ -1,39 +1,76 @@
 library(foreach)
-source("./Code/create_pairwiseComps_sampsByComps.R")
-source("./Code/chem_similarity_function.R")
+library(doParallel)
+source("./code/create_pairwiseComps_sampsByComps.R")
+source("./code/chem_similarity_function.R")
 
-pairwise.comps <- make_pairwisecomps("./data/all_compounds_merged_spectra/all_compounds_merged_spectra")
+pairwise.comps.phen <- make_pairwisecomps("./data/phenolics_network_2017_11_16/")
+pairwise.comps.sap <- make_pairwisecomps("./data/saponin_network_2017_11_16/")
 
+# load file with compounds that are contaminants and remove:
+contaminants <- read.csv("./data/contaminants_2017_11_16.csv")
+non_contaminants <- names(pairwise.comps.phen)[!names(pairwise.comps.phen) %in% contaminants$compound_number]
+pairwise.comps.phen <- pairwise.comps.phen[non_contaminants, non_contaminants]
+non_contaminants_sap <- names(pairwise.comps.sap)[!names(pairwise.comps.sap) %in% contaminants$compound_number]
+pairwise.comps.sap <- pairwise.comps.sap[non_contaminants_sap, non_contaminants_sap]
 
-sampsByCompounds <- make_sampsByCompounds("./data/rand.samples.csv", samps_to_remove = c("COJR", "Zygl"), by_species = TRUE)
-sampsByCompounds1 <- sampsByCompounds[,names(sampsByCompounds) %in% names(pairwise.comps)]
-sampsCompsStand <- standardizeByRow(sampsByCompounds1)
+sampsByCompounds <- make_sampsByCompounds("./data/BCI_test/BCI_filled_compound_table_2017_11_19.csv", by_species = FALSE)
+sampsByCompoundsLog <- log(sampsByCompounds)
+sampsByCompoundsLog[sampsByCompoundsLog <= 0] <- 0
+write.csv(t(sampsByCompounds), "./data/BCI_test/filled_samps_by_comps.csv")
+
+# without log TIC
+sampsByCompoundsSap <- sampsByCompounds[,names(sampsByCompounds) %in% names(pairwise.comps.sap)]
+sampsByCompoundsPhen <- sampsByCompounds[,names(sampsByCompounds) %in% names(pairwise.comps.phen)]
+
+# with log TIC
+sampsByCompoundsSapLOG <- sampsByCompoundsLog[,names(sampsByCompoundsLog) %in% names(pairwise.comps.sap)]
+sampsByCompoundsPhenLOG <- sampsByCompoundsLog[,names(sampsByCompoundsLog) %in% names(pairwise.comps.phen)]
+
+sampsCompsStandSap <- standardizeByRow(sampsByCompoundsSapLOG)
+sampsCompsStandPhen <- standardizeByRow(sampsByCompoundsPhenLOG)
 
 # PARALLELIZE CHEM SIMILARITY CODE
 cores = detectCores()
 cl <- makeCluster(cores[1]) #not to overload your computer
-
 registerDoParallel(cl)
 
-similarity_matrix <- foreach(i = 1:nrow(sampsCompsStand), .combine = rbind) %:% foreach(j = 1:nrow(sampsCompsStand)) %dopar% {
+# Saponins
+similarity_matrix_sap <- foreach(i = 1:nrow(sampsCompsStandSap), .combine = rbind) %:% foreach(j = 1:nrow(sampsCompsStandSap)) %dopar% {
   if(i <= j) {
-  chemical_similarity_single(row.names(sampsCompsStand)[i], row.names(sampsCompsStand)[j], sampsCompsStand, pairwise.comps)
+  chemical_similarity_single(row.names(sampsCompsStandSap)[i], row.names(sampsCompsStandSap)[j], sampsCompsStandSap, pairwise.comps.sap)
   }
   else NA
 }
-
-similarity_matrix <- as.data.frame(similarity_matrix)
-names(similarity_matrix) <- row.names(sampsCompsStand)
-row.names(similarity_matrix) <- row.names(sampsCompsStand)
-
-for(i in 1:nrow(similarity_matrix)) {
-  for(j in i:nrow(similarity_matrix)) {
-    similarity_matrix[j,i] <- similarity_matrix[i,j]
+simmatrixbackup <- similarity_matrix_sap
+similarity_matrix_sap <- as.data.frame(similarity_matrix_sap)
+names(similarity_matrix_sap) <- row.names(sampsCompsStandSap)
+row.names(similarity_matrix_sap) <- row.names(sampsCompsStandSap)
+for(i in 1:ncol(similarity_matrix_sap)) similarity_matrix_sap[,i] <- unlist(similarity_matrix_sap[,i])
+for(i in 1:nrow(similarity_matrix_sap)) {
+  for(j in i:nrow(similarity_matrix_sap)) {
+    similarity_matrix_sap[j,i] <- similarity_matrix_sap[i,j]
   }
 }
 
-for(i in 1:ncol(similarity_matrix)) similarity_matrix[,i] <- unlist(similarity_matrix[,i])
+write.csv(similarity_matrix_sap, "./data/BCI_test/BCI_sap_sim_filled_comps_LOG_2017_11_19.csv")
 
-chem_sim_matrix_162spec <- similarity_matrix[names(Inga_phy_dist_match_chem),names(Inga_phy_dist_match_chem)]
-write.csv(similarity_matrix, "./data/similarity_randspecies.csv")
+
+# Phenolics
+similarity_matrix_phen <- foreach(i = 1:nrow(sampsCompsStandPhen), .combine = rbind) %:% foreach(j = 1:nrow(sampsCompsStandPhen)) %dopar% {
+  if(i <= j) {
+    chemical_similarity_single(row.names(sampsCompsStandPhen)[i], row.names(sampsCompsStandPhen)[j], sampsCompsStandPhen, pairwise.comps.phen)
+  }
+  else NA
+}
+similarity_matrix_phen <- as.data.frame(similarity_matrix_phen)
+names(similarity_matrix_phen) <- row.names(sampsCompsStandPhen)
+row.names(similarity_matrix_phen) <- row.names(sampsCompsStandPhen)
+for(i in 1:ncol(similarity_matrix_phen)) similarity_matrix_phen[,i] <- unlist(similarity_matrix_phen[,i])
+for(i in 1:nrow(similarity_matrix_phen)) {
+  for(j in i:nrow(similarity_matrix_phen)) {
+    similarity_matrix_phen[j,i] <- similarity_matrix_phen[i,j]
+  }
+}
+
+write.csv(similarity_matrix_phen, "./data/BCI_test/BCI_phen_sim_filled_comps_LOG_2017_11_19.csv")
 
