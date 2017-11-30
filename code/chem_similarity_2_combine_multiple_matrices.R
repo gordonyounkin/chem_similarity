@@ -1,22 +1,22 @@
 library(RMySQL)
-library(dplyr)
+library(plyr)
 source("./code/create_pairwiseComps_sampsByComps.R")
 source("./code/chem_similarity_function.R")
 
 # load pairwise.comps/sampsByCompounds files
-pairwise.comps.sap <- make_pairwisecomps("K:/DDA/all_inga/sap_network_merged_spec/")
-pairwise.comps.phen <- make_pairwisecomps("K:/DDA/all_inga/phen_network_merged_spec/")
+#    pairwise.comps.sap <- make_pairwisecomps("K:/DDA/all_inga/sap_network_merged_spec/")
+#    pairwise.comps.phen <- make_pairwisecomps("K:/DDA/all_inga/phen_network_merged_spec/")
 
-sampsByCompounds <- make_sampsByCompounds("./data/compound_tic_2017_08_02.csv", samps_to_remove = c("COJR", "Zygl"), by_species = FALSE)
+#    sampsByCompounds <- make_sampsByCompounds("./data/compound_tic_2017_08_02.csv", samps_to_remove = c("COJR", "Zygl"), by_species = FALSE)
 
-sampsByCompoundsSap <- sampsByCompounds[,names(sampsByCompounds) %in% names(pairwise.comps.sap)]
-sampsByCompoundsPhen <- sampsByCompounds[,names(sampsByCompounds) %in% names(pairwise.comps.phen)]
+#    ampsByCompoundsSap <- sampsByCompounds[,names(sampsByCompounds) %in% names(pairwise.comps.sap)]
+#    sampsByCompoundsPhen <- sampsByCompounds[,names(sampsByCompounds) %in% names(pairwise.comps.phen)]
 
 # load any similarity files you want to combine
-chem_similarity_phen <- read.csv("./data/BCI_test/BCI_phen_sim_filled_comps_LOG_2017_11_19.csv")
+chem_similarity_phen <- read.csv("./results/phen_sim_filled_comps2_LOG_2017_11_20.csv")
 row.names(chem_similarity_phen) <- chem_similarity_phen$X
 chem_similarity_phen <- chem_similarity_phen[,names(chem_similarity_phen) != "X"]
-chem_similarity_sap <- read.csv("./data/BCI_test/BCI_sap_sim_filled_comps_LOG_2017_11_19.csv")
+chem_similarity_sap <- read.csv("./results/sap_sim_filled_comps2_LOG_2017_11_20.csv")
 row.names(chem_similarity_sap) <- chem_similarity_sap$X
 chem_similarity_sap <- chem_similarity_sap[,names(chem_similarity_sap) != "X"]
 
@@ -57,7 +57,7 @@ comp.class.pcts$phen.final.pct <- comp.class.pcts$phenTICpct * comp.class.pcts$p
 comp.class.pcts$sap.final.pct <- comp.class.pcts$sapTICpct * comp.class.pcts$phensap.final.pct
 
 
-write.csv(comp.class.pcts, "./results/phen_sap_tyr_sample_percents_no_LOG_2017_11_17.csv")
+write.csv(comp.class.pcts, "./results/phen_sap_tyr_sample_percents_2017_11_20.csv")
 
 pairwise.phen.percent <- outer(comp.class.pcts$phen.final.pct, comp.class.pcts$phen.final.pct, FUN = function(X,Y) (X+Y)/2)
 pairwise.phen.1mindiff <- outer(comp.class.pcts$phen.final.pct, comp.class.pcts$phen.final.pct, FUN = function(X,Y) 1-abs(X-Y))
@@ -70,17 +70,17 @@ pairwise.tyr.1mindiff <- outer(comp.class.pcts$tyr.final.pct, comp.class.pcts$ty
 pairwise.tyr.min <- outer(comp.class.pcts$tyr.final.pct, comp.class.pcts$tyr.final.pct, FUN = function(X,Y) sapply(1:length(X), function(i) min(X[i],Y[i])))
 
 pairwise.spp <- chem_similarity_phen*pairwise.phen.percent*pairwise.phen.1mindiff + chem_similarity_sap*pairwise.sap.percent*pairwise.sap.1mindiff + pairwise.tyr.percent*pairwise.tyr.1mindiff
-write.csv(pairwise.spp, "./data/BCI_test/BCI_filled_sim_matrix_COMBINEWITHLOG_2017_11_17.csv")
+
 
 # try not doing 1-difference when combining compound classes...it seems to be splitting some species
-pairwise.spp.mincompclass <- chem_similarity_phen*pairwise.phen.min + chem_similarity_sap*pairwise.sap.min + pairwise.tyr.min
-write.csv(pairwise.spp.mincompclass, "./data/BCI_test/BCI_sim_matrix_MINCOMP.csv")
+#    pairwise.spp.mincompclass <- chem_similarity_phen*pairwise.phen.min + chem_similarity_sap*pairwise.sap.min + pairwise.tyr.min
+#    write.csv(pairwise.spp.mincompclass, "./data/BCI_test/BCI_sim_matrix_MINCOMP.csv")
 
 # try just using average of investment in each compound class
-pairwise.spp.avgcompclass <- chem_similarity_phen*pairwise.phen.percent + chem_similarity_sap*pairwise.sap.percent + pairwise.tyr.percent
-write.csv(pairwise.spp.avgcompclass, "K:/GY_LAB_FILES/github_repositories/chem_similarity/results/2017_10_31_pairwise.samps.avgcompclass.csv")
+#    pairwise.spp.avgcompclass <- chem_similarity_phen*pairwise.phen.percent + chem_similarity_sap*pairwise.sap.percent + pairwise.tyr.percent
+#    write.csv(pairwise.spp.avgcompclass, "K:/GY_LAB_FILES/github_repositories/chem_similarity/results/2017_10_31_pairwise.samps.avgcompclass.csv")
 
-pairwise.spp <- pairwise.spp.mincompclass
+
 dbDisconnect(mydb)
 mydb = dbConnect(MySQL(), user='u6009010', password='3UaUhf7a', dbname='inga_2015_06_01', host='mysql.chpc.utah.edu')
 for(i in 1:nrow(pairwise.spp)) {
@@ -89,7 +89,8 @@ for(i in 1:nrow(pairwise.spp)) {
   row.names(pairwise.spp)[i] <- paste(row.names(pairwise.spp)[i], species_name, sep = "_")
 }
 
-write.csv(pairwise.spp, "./results/2017_11_01_all_samples_chem_similarity_LOG.csv", row.names = TRUE)
+write.csv(pairwise.spp, "./results/combined_similarity_matrix_2017_11_20.csv")
+
 
 # create chem similarity tree from similarity matrix (similarity matrix should be named 'pairwise.spp')
 library(vegan)
@@ -119,8 +120,6 @@ result_samples <- pvclust(pairwise.spp, method.hclust=mhc, method.dist="correlat
 # save tree--make sure to give it a name
 dev.new()
 plot(result_samples, cex=1.66, cex.pv=1, lwd=1, float = 0.003)
-dev.copy2pdf(file = "./data/BCI_test/BCI_chem_dendrogram_filled_MINCOMPCLASS.pdf", width = 50, height = 20)
+dev.copy2pdf(file = "./results/chem_dendrogram_all_samps_2017_11_20.pdf", width = 200, height = 20)
 dev.off()
 
-
-comp.class.pcts[comp.class.pcts$species_code %in% c("M40a","N36"),c("sample","phenTICpct","sapTICpct")]

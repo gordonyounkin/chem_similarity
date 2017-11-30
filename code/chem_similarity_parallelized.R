@@ -13,10 +13,11 @@ pairwise.comps.phen <- pairwise.comps.phen[non_contaminants, non_contaminants]
 non_contaminants_sap <- names(pairwise.comps.sap)[!names(pairwise.comps.sap) %in% contaminants$compound_number]
 pairwise.comps.sap <- pairwise.comps.sap[non_contaminants_sap, non_contaminants_sap]
 
-sampsByCompounds <- make_sampsByCompounds("./data/BCI_test/BCI_filled_compound_table_2017_11_19.csv", by_species = FALSE)
+sampsByCompounds <- make_sampsByCompounds("./data/filled_compound_table_2017_11_20.csv", 
+                                          by_species = FALSE)
 sampsByCompoundsLog <- log(sampsByCompounds)
 sampsByCompoundsLog[sampsByCompoundsLog <= 0] <- 0
-write.csv(t(sampsByCompounds), "./data/BCI_test/filled_samps_by_comps.csv")
+write.csv(t(sampsByCompounds), "./data/filled_samps_by_comps_2017_11_20.csv")
 
 # without log TIC
 sampsByCompoundsSap <- sampsByCompounds[,names(sampsByCompounds) %in% names(pairwise.comps.sap)]
@@ -52,7 +53,7 @@ for(i in 1:nrow(similarity_matrix_sap)) {
   }
 }
 
-write.csv(similarity_matrix_sap, "./data/BCI_test/BCI_sap_sim_filled_comps_LOG_2017_11_19.csv")
+write.csv(similarity_matrix_sap, "./results/sap_sim_filled_comps2_LOG_2017_11_20.csv")
 
 
 # Phenolics
@@ -72,5 +73,5 @@ for(i in 1:nrow(similarity_matrix_phen)) {
   }
 }
 
-write.csv(similarity_matrix_phen, "./data/BCI_test/BCI_phen_sim_filled_comps_LOG_2017_11_19.csv")
+write.csv(similarity_matrix_phen, "./results/phen_sim_filled_comps2_LOG_2017_11_20.csv")
 
