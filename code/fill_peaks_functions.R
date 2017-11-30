@@ -64,3 +64,14 @@ return(sum(curr_peak[which(row.names(curr_peak)==mass_peaks$firstScan[peak_to_us
 else return(0)
 }
 
+### can I just use getPekas() function from XCMS?
+library(xcms)
+test <- xcmsSet("K:/XCMS_ANALYSIS/All_Inga_Project/2_Nov_All_Inga_XCMS_Directories/BCI/IngA/Sample/IngA_1619.mzXML")
+test1 <- xcmsRaw("K:/XCMS_ANALYSIS/All_Inga_Project/2_Nov_All_Inga_XCMS_Directories/BCI/IngA/Sample/IngA_1619.mzXML", profstep = 0.01, profmethod = , includeMSn = FALSE, mslevel = 1)
+ms_features <- read.csv("./data/all_features_with_mzrt.csv")
+head(ms_features)
+ms_features$mzmin <- ms_features$mz - 0.01
+ms_features$mzmax <- ms_features$mz + 0.01
+ms_features$rtmin <- ms_features$rt - 0.5
+ms_features$rtmax <- ms_features$rt + 0.5
+test_findpeaks <- getPeaks(object = test, peakrange = ms_features[,1:5], step = 0.01)
