@@ -73,11 +73,11 @@ pairwise.spp <- chem_similarity_phen*pairwise.phen.percent*pairwise.phen.1mindif
 
 
 # try not doing 1-difference when combining compound classes...it seems to be splitting some species
-#    pairwise.spp.mincompclass <- chem_similarity_phen*pairwise.phen.min + chem_similarity_sap*pairwise.sap.min + pairwise.tyr.min
+pairwise.spp <- chem_similarity_phen*pairwise.phen.min + chem_similarity_sap*pairwise.sap.min + pairwise.tyr.min
 #    write.csv(pairwise.spp.mincompclass, "./data/BCI_test/BCI_sim_matrix_MINCOMP.csv")
 
 # try just using average of investment in each compound class
-#    pairwise.spp.avgcompclass <- chem_similarity_phen*pairwise.phen.percent + chem_similarity_sap*pairwise.sap.percent + pairwise.tyr.percent
+pairwise.spp <- chem_similarity_phen*pairwise.phen.percent + chem_similarity_sap*pairwise.sap.percent #+ pairwise.tyr.percent
 #    write.csv(pairwise.spp.avgcompclass, "K:/GY_LAB_FILES/github_repositories/chem_similarity/results/2017_10_31_pairwise.samps.avgcompclass.csv")
 
 
@@ -89,7 +89,7 @@ for(i in 1:nrow(pairwise.spp)) {
   row.names(pairwise.spp)[i] <- paste(row.names(pairwise.spp)[i], species_name, sep = "_")
 }
 
-write.csv(pairwise.spp, "./results/combined_similarity_matrix_2017_11_20.csv")
+write.csv(pairwise.spp, "./results/combined_similarity_matrix_only_mincompclass_2017_11_20.csv")
 
 
 # create chem similarity tree from similarity matrix (similarity matrix should be named 'pairwise.spp')
@@ -120,6 +120,6 @@ result_samples <- pvclust(pairwise.spp, method.hclust=mhc, method.dist="correlat
 # save tree--make sure to give it a name
 dev.new()
 plot(result_samples, cex=1.66, cex.pv=1, lwd=1, float = 0.003)
-dev.copy2pdf(file = "./results/chem_dendrogram_all_samps_2017_11_20.pdf", width = 200, height = 20)
+dev.copy2pdf(file = "./results/chem_dendrogram_only_mincompclass_2017_11_20.pdf", width = 200, height = 20)
 dev.off()
 
