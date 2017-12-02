@@ -13,10 +13,10 @@ source("./code/chem_similarity_function.R")
 #    sampsByCompoundsPhen <- sampsByCompounds[,names(sampsByCompounds) %in% names(pairwise.comps.phen)]
 
 # load any similarity files you want to combine
-chem_similarity_phen <- read.csv("./results/phen_sim_filled_comps2_LOG_2017_11_20.csv")
+chem_similarity_phen <- read.csv("./results/phen_sim_filled_comps_LOG_2017_11_30.csv")
 row.names(chem_similarity_phen) <- chem_similarity_phen$X
 chem_similarity_phen <- chem_similarity_phen[,names(chem_similarity_phen) != "X"]
-chem_similarity_sap <- read.csv("./results/sap_sim_filled_comps2_LOG_2017_11_20.csv")
+chem_similarity_sap <- read.csv("./results/sap_sim_filled_comps_LOG_2017_11_30.csv")
 row.names(chem_similarity_sap) <- chem_similarity_sap$X
 chem_similarity_sap <- chem_similarity_sap[,names(chem_similarity_sap) != "X"]
 
@@ -57,7 +57,7 @@ comp.class.pcts$phen.final.pct <- comp.class.pcts$phenTICpct * comp.class.pcts$p
 comp.class.pcts$sap.final.pct <- comp.class.pcts$sapTICpct * comp.class.pcts$phensap.final.pct
 
 
-write.csv(comp.class.pcts, "./results/phen_sap_tyr_sample_percents_2017_11_20.csv")
+write.csv(comp.class.pcts, "./results/phen_sap_tyr_sample_percents_2017_11_30.csv")
 
 pairwise.phen.percent <- outer(comp.class.pcts$phen.final.pct, comp.class.pcts$phen.final.pct, FUN = function(X,Y) (X+Y)/2)
 pairwise.phen.1mindiff <- outer(comp.class.pcts$phen.final.pct, comp.class.pcts$phen.final.pct, FUN = function(X,Y) 1-abs(X-Y))
@@ -69,7 +69,7 @@ pairwise.tyr.percent <- outer(comp.class.pcts$tyr.final.pct, comp.class.pcts$tyr
 pairwise.tyr.1mindiff <- outer(comp.class.pcts$tyr.final.pct, comp.class.pcts$tyr.final.pct, FUN = function(X,Y) 1-abs(X-Y))
 pairwise.tyr.min <- outer(comp.class.pcts$tyr.final.pct, comp.class.pcts$tyr.final.pct, FUN = function(X,Y) sapply(1:length(X), function(i) min(X[i],Y[i])))
 
-pairwise.spp <- chem_similarity_phen*pairwise.phen.percent*pairwise.phen.1mindiff + chem_similarity_sap*pairwise.sap.percent*pairwise.sap.1mindiff + pairwise.tyr.percent*pairwise.tyr.1mindiff
+pairwise.spp <- chem_similarity_phen*pairwise.phen.min + chem_similarity_sap*pairwise.sap.min + pairwise.tyr.percent*pairwise.tyr.min
 
 
 # try not doing 1-difference when combining compound classes...it seems to be splitting some species
@@ -89,7 +89,7 @@ for(i in 1:nrow(pairwise.spp)) {
   row.names(pairwise.spp)[i] <- paste(row.names(pairwise.spp)[i], species_name, sep = "_")
 }
 
-write.csv(pairwise.spp, "./results/combined_similarity_matrix_only_mincompclass_2017_11_20.csv")
+write.csv(pairwise.spp, "./results/combined_similarity_matrix_only_mincompclass_2017_11_30.csv")
 
 
 # create chem similarity tree from similarity matrix (similarity matrix should be named 'pairwise.spp')
@@ -120,6 +120,6 @@ result_samples <- pvclust(pairwise.spp, method.hclust=mhc, method.dist="correlat
 # save tree--make sure to give it a name
 dev.new()
 plot(result_samples, cex=1.66, cex.pv=1, lwd=1, float = 0.003)
-dev.copy2pdf(file = "./results/chem_dendrogram_only_mincompclass_2017_11_20.pdf", width = 200, height = 20)
+dev.copy2pdf(file = "./results/chem_dendrogram_only_mincompclass_2017_11_30.pdf", width = 200, height = 20)
 dev.off()
 
