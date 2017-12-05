@@ -22,15 +22,15 @@ sites <- c("BCI","FG", "LA", "Manaus", "Tiputini")
 
 # if you want to run a specific species, fill out these two vectors with species and associated site.
 # Then change sites[j] in line under 'for(k in 1:length(species)) to sites[k] and run all but outermost loop
-species <- c("IngA")
-sites <- c("BCI")
+species <- c("LA4")
+sites <- c("LA")
 
 for(j in 1:length(sites)) {
   species <- list.files(paste("K:/XCMS_ANALYSIS/All_Inga_Project/2_Nov_All_Inga_XCMS_Directories/",sites[j],"/",sep=""))
   species <- species[!startsWith(species, "X")]
   species <- species[!endsWith(species, "undiluted")]
   for(k in 1:length(species)) {
-    samples <- list.files(paste("K:/XCMS_ANALYSIS/All_Inga_Project/2_Nov_All_Inga_XCMS_Directories/",sites[j],"/",species[k],"/Sample/",sep=""), full.names = TRUE)
+    samples <- list.files(paste("K:/XCMS_ANALYSIS/All_Inga_Project/2_Nov_All_Inga_XCMS_Directories/",sites[k],"/",species[k],"/Sample/",sep=""), full.names = TRUE)
     for(l in 1:length(samples)) {
     # fill peaks for sample
       print(samples[l])
@@ -107,7 +107,7 @@ for(i in 1:nrow(blank_findpeaks_2)) {
     next }
   if(abs(blank_findpeaks_2$feature_mz[i] - test2[1,1]) * 1000000 / blank_findpeaks_2$feature_mz[i]  < 25) {
     intensities <- sapply((peakscan-20):(peakscan+20), function(x) {
-      tempscan = getScan(sample_xcms, x, mzrange = c(blank_findpeaks_2$mzmin[i],blank_findpeaks_2$mzmax[i]))
+      tempscan = getScan(blank_xcms, x, mzrange = c(blank_findpeaks_2$mzmin[i],blank_findpeaks_2$mzmax[i]))
       ifelse(nrow(tempscan) == 0, 0, tempscan[1,2]) } )
     midpoint <- length(intensities)/2 + 0.5
       diffs <- which(intensities == 0) - midpoint
@@ -129,8 +129,8 @@ sample_peaks <- sample_blank_peaks[sample_blank_peaks$TIC.x / sample_blank_peaks
 sample_peaks_1 <- data.frame("feature_number" = sample_peaks$feature_number, "TIC" = sample_peaks$TIC.x, "actual_mz" = sample_peaks$actual_mz, "actual_rt" = sample_peaks$actual_rt, "sample_name" = unlist(strsplit(sample_name, split = "[.]"))[1])
 
 if(j == 1 & k == 1 & l == 1) {
-  write.table(sample_peaks_1, "./results/all_inga_filled_features_ppm_2017_11_17.csv", sep = ",", append = FALSE, row.names = FALSE, col.names = TRUE)
+  write.table(sample_peaks_1, "./results/LA4_filled_features_ppm_2017_11_17.csv", sep = ",", append = FALSE, row.names = FALSE, col.names = TRUE)
 }
 else {
-write.table(sample_peaks_1, "./results/all_inga_filled_features_ppm_2017_11_17.csv", sep = ",", append = TRUE, row.names = FALSE, col.names = FALSE) }
+write.table(sample_peaks_1, "./results/LA4_filled_features_ppm_2017_11_17.csv", sep = ",", append = TRUE, row.names = FALSE, col.names = FALSE) }
     }}}
