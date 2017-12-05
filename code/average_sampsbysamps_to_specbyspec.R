@@ -26,14 +26,11 @@ for(i in 1:nrow(pairwise.spp)) {
 
 write.csv(pairwise.spp, "./results/chem_sim_by_species_mincompclass_2017_11_29.csv", row.names=TRUE)
 
-#for(i in 1:length(species_codes)) {
-#  for(j in i:length(species_codes)) {
-#    curr_data <- chem_similarity[startsWith(row.names(chem_similarity),species_codes[i]),
-#                                 startsWith(row.names(chem_similarity),species_codes[j])]
-#    if(i != j) pairwise.spp[i,j] = pairwise.spp[j,i] = mean(as.matrix(curr_data))
-#    else {
-#    for(k in 1:nrow(curr_data)) for(l in 1:nrow(curr_data)) if(l >= k) curr_data[l,k] <- NA
-#    pairwise.spp[i,j] = pairwise.spp[j,i] = mean(as.matrix(curr_data), na.rm=TRUE)
-#    }
-#  }
-#}
+### extract subset of chemical similarity matrix
+pairwise.spp <- read.csv("./results/chem_sim_by_species_1minusdiff_2017_11_29.csv")
+pairwise.spp <- pairwise.spp[,names(pairwise.spp) != "X"]
+row.names(pairwise.spp) <- names(pairwise.spp)
+
+pairwise.la <- pairwise.spp[startsWith(row.names(pairwise.spp), "LA"), startsWith(names(pairwise.spp), "LA")]
+
+write.csv(pairwise.la, "./results/LA_chem_sim_by_species_1minusdiff_2017_11_30.csv")
