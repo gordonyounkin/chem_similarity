@@ -127,30 +127,33 @@ def build_compound_table(pc_id_table, min_cos_score):
     return compound_table_temp
 
 # build function to match filled features to compounds:
-def fill_compounds(filled_features, compound_table, min_cos_score = 0.3):
+def fill_compounds(filled_features, compound_table, min_cos_score=0.3, min_frac=0.1):
     filled_compounds = {}
 
     for sample in filled_features:
         for compound in compound_table:
             shared_features = [x for x in filled_features[sample]["feature_number"] if x in compound_table[compound]["features"]]
-            if float(len(shared_features)) / float(len(compound_table[compound]["features"])) > 0.1:
+            major_features = [x for i,x in enumerate(compound_table[compound]["features"]) if \
+             compound_table[compound]["rel_feature_abund"][i] > 0.75]
+            shared_major_features = [x for x in filled_features[sample]["feature_number"] if x in major_features]
+            if float(len(shared_major_features)) / float(len(major_features)) == 1:
                 sample_compound = {
                     "features": shared_features,
                     "TICs": [filled_features[sample]["TIC"][filled_features[sample]["feature_number"].index(x)] for x in shared_features]
                 }
-                if cosine_score(sample_compound, compound_table[compound], abundance = "TICs", features = "features") > min_cos_score:
-                    if sample in filled_compounds:
-                        filled_compounds[sample]["compound"] += [compound]
-                        filled_compounds[sample]["TIC"] += [sum(sample_compound["TICs"])]
-                    else:
-                        filled_compounds[sample] = {
-                            "compound": [compound],
-                            "TIC": [sum(sample_compound["TICs"])]
-                        }
+                #if cosine_score(sample_compound, compound_table[compound], abundance = "TICs", features = "features") > min_cos_score:
+                if sample in filled_compounds:
+                    filled_compounds[sample]["compound"] += [compound]
+                    filled_compounds[sample]["TIC"] += [sum(sample_compound["TICs"])]
+                else:
+                    filled_compounds[sample] = {
+                        "compound": [compound],
+                        "TIC": [sum(sample_compound["TICs"])]
+                    }
                     filled_features[sample]["TIC"] = [x for i,x in enumerate(filled_features[sample]["TIC"]) if i not in \
-                    [filled_features[sample]["feature_number"].index(k) for k in shared_features]]
+                    [filled_features[sample]["feature_number"].index(k) for k in major_features]]
                     filled_features[sample]["feature_number"] = [x for i,x in enumerate(filled_features[sample]["feature_number"]) if i not in \
-                    [filled_features[sample]["feature_number"].index(k) for k in shared_features]]
+                    [filled_features[sample]["feature_number"].index(k) for k in major_features]]
     
     return filled_compounds
     

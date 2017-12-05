@@ -17,7 +17,7 @@ mydb = pymysql.connect(host='mysql.chpc.utah.edu',
                        cursorclass=pymysql.cursors.DictCursor)
 
 with mydb.cursor() as cursor:
-    sql = "SELECT * FROM `feature_table_raw_data`"
+    sql = "SELECT * FROM `feature_table_raw_data_C18`"
     cursor.execute(sql)
     result = cursor.fetchall()
 
@@ -60,8 +60,32 @@ with open("K://GY_LAB_FILES//github_repositories//chem_similarity//data//polar_c
             compound_table[compound]["TICs"][compound_table[compound]["features"].index(feature)], \
             feature_table[feature]["avg_mz"], feature_table[feature]["avg_rt"]))
 
+# or read in compound table if it already exists:
+with open("K://GY_LAB_FILES//github_repositories//chem_similarity//data//compound_feature_table.csv", "r") as file:
+    compound_table_temp = file.readlines()
+
+compound_table = {}
+for row in compound_table_temp:
+    compound = row.split(",")[0]
+    if compound == 'compound_number':
+        next
+    else:
+        compound = int(compound)
+        if compound in compound_table:
+            compound_table[compound]["features"] += [int(row.split(",")[1])]
+            compound_table[compound]["TICs"] += [float(row.split(",")[2])]
+            compound_table[compound]["avg_rt"] += [float(row.split(",")[4].split("\n")[0].replace('"',''))]
+            compound_table[compound]["avg_mz"] += [float(row.split(",")[3])]
+        else:
+            compound_table[compound] = {
+                "features": [int(row.split(",")[1])],
+                "TICs": [float(row.split(",")[2])],
+                "avg_rt": [float(row.split(",")[4].split("\n")[0].replace('"',''))],
+                "avg_mz": [float(row.split(",")[3])]
+            }
+
 # load filled features from R Code:
-with open("K://GY_LAB_FILES//github_repositories//chem_similarity//results//all_inga_filled_features_ppm_2017_11_14.csv", "r") as file:
+with open("K://GY_LAB_FILES//github_repositories//chem_similarity//results//LA4_filled_features_ppm_2017_11_17.csv", "r") as file:
     filled_features_temp = file.readlines()
 
 filled_features = {}
@@ -81,6 +105,13 @@ for row in filled_features_temp:
                 "actual_rt": [float(row.split(",")[3])]
             }
 
+# calculate percent of TIC for features in each compound
+for compound in compound_table:
+    compound_table[compound]["feature_pcts"] = [x / sum(compound_table[compound]["TICs"]) \
+     for x in compound_table[compound]["TICs"]]
+    compound_table[compound]["rel_feature_abund"] = [x / max(compound_table[compound]["feature_pcts"]) \
+     for x in compound_table[compound]["feature_pcts"]]
+
 filled_compounds_05 = ct.fill_compounds(filled_features, compound_table, min_cos_score = 0.5)
 filled_compounds_03 = ct.fill_compounds(filled_features, compound_table, min_cos_score = 0.3)
 # changed build_compound_table_code to require sample to contain at least 20% of peaks to have a compound.
@@ -90,13 +121,16 @@ filled_comps_ppm = ct.fill_compounds(filled_features, compound_table, min_cos_sc
 # change parameters for fill compounds -- must contain at least 10% of features to have a compound.
 # 20% was weeding out too many that had a compound at low abundance (see compound 502)
 filled_comps_ppm_min01 = ct.fill_compounds(filled_features, compound_table, min_cos_score = 0.3)
+# change parameters to not remove features after they are used once.
+filled_comps = ct.fill_compounds(filled_features, compound_table, min_cos_score = 0.3)
+filled_comp_2 = ct.fill_compounds(filled_features, compound_table, min_cos_score = 0.3)
 
-with open("K://GY_LAB_FILES//github_repositories//chem_similarity//data//filled_compound_table_2017_11_15.csv", "w") as file:
-    file.write("sample,compound,TIC\n")
-    for sample in filled_comps_ppm_min01:
-        for i, compound in enumerate(filled_comps_ppm_min01[sample]["compound"]):
+with open("K://GY_LAB_FILES//github_repositories//chem_similarity//data//LA4_filled_compound_table_2017_11_30.csv", "w") as file:
+    file.write("compound_sample,compound_number,TIC\n")
+    for sample in filled_comp_2:
+        for i, compound in enumerate(filled_comp_2[sample]["compound"]):
             file.write("%s,%d,%f\n" % (sample, compound, \
-            filled_comps_ppm_min01[sample]["TIC"][i]))
+            filled_comp_2[sample]["TIC"][i]))
 
 
 filled_compounds_1[filled_compounds_1.keys()[0]]
