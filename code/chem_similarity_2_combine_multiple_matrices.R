@@ -59,26 +59,17 @@ comp.class.pcts$sap.final.pct <- comp.class.pcts$sapTICpct * comp.class.pcts$phe
 
 write.csv(comp.class.pcts, "./results/phen_sap_tyr_sample_percents_2017_11_30.csv")
 
-pairwise.phen.percent <- outer(comp.class.pcts$phen.final.pct, comp.class.pcts$phen.final.pct, FUN = function(X,Y) (X+Y)/2)
-pairwise.phen.1mindiff <- outer(comp.class.pcts$phen.final.pct, comp.class.pcts$phen.final.pct, FUN = function(X,Y) 1-abs(X-Y))
+#pairwise.phen.percent <- outer(comp.class.pcts$phen.final.pct, comp.class.pcts$phen.final.pct, FUN = function(X,Y) (X+Y)/2)
+#pairwise.phen.1mindiff <- outer(comp.class.pcts$phen.final.pct, comp.class.pcts$phen.final.pct, FUN = function(X,Y) 1-abs(X-Y))
 pairwise.phen.min <- outer(comp.class.pcts$phen.final.pct, comp.class.pcts$phen.final.pct, FUN = function(X,Y) sapply(1:length(X), function(i) min(X[i],Y[i])))
-pairwise.sap.percent <- outer(comp.class.pcts$sap.final.pct, comp.class.pcts$sap.final.pct, FUN = function(X,Y) (X+Y)/2)
-pairwise.sap.1mindiff <- outer(comp.class.pcts$sap.final.pct, comp.class.pcts$sap.final.pct, FUN = function(X,Y) 1-abs(X-Y))
+#pairwise.sap.percent <- outer(comp.class.pcts$sap.final.pct, comp.class.pcts$sap.final.pct, FUN = function(X,Y) (X+Y)/2)
+#pairwise.sap.1mindiff <- outer(comp.class.pcts$sap.final.pct, comp.class.pcts$sap.final.pct, FUN = function(X,Y) 1-abs(X-Y))
 pairwise.sap.min <- outer(comp.class.pcts$sap.final.pct, comp.class.pcts$sap.final.pct, FUN = function(X,Y) sapply(1:length(X), function(i) min(X[i],Y[i])))
-pairwise.tyr.percent <- outer(comp.class.pcts$tyr.final.pct, comp.class.pcts$tyr.final.pct, FUN = function(X,Y) (X+Y)/2)
-pairwise.tyr.1mindiff <- outer(comp.class.pcts$tyr.final.pct, comp.class.pcts$tyr.final.pct, FUN = function(X,Y) 1-abs(X-Y))
+#pairwise.tyr.percent <- outer(comp.class.pcts$tyr.final.pct, comp.class.pcts$tyr.final.pct, FUN = function(X,Y) (X+Y)/2)
+#pairwise.tyr.1mindiff <- outer(comp.class.pcts$tyr.final.pct, comp.class.pcts$tyr.final.pct, FUN = function(X,Y) 1-abs(X-Y))
 pairwise.tyr.min <- outer(comp.class.pcts$tyr.final.pct, comp.class.pcts$tyr.final.pct, FUN = function(X,Y) sapply(1:length(X), function(i) min(X[i],Y[i])))
 
 pairwise.spp <- chem_similarity_phen*pairwise.phen.min + chem_similarity_sap*pairwise.sap.min + pairwise.tyr.percent*pairwise.tyr.min
-
-
-# try not doing 1-difference when combining compound classes...it seems to be splitting some species
-pairwise.spp <- chem_similarity_phen*pairwise.phen.min + chem_similarity_sap*pairwise.sap.min + pairwise.tyr.min
-#    write.csv(pairwise.spp.mincompclass, "./data/BCI_test/BCI_sim_matrix_MINCOMP.csv")
-
-# try just using average of investment in each compound class
-pairwise.spp <- chem_similarity_phen*pairwise.phen.percent + chem_similarity_sap*pairwise.sap.percent #+ pairwise.tyr.percent
-#    write.csv(pairwise.spp.avgcompclass, "K:/GY_LAB_FILES/github_repositories/chem_similarity/results/2017_10_31_pairwise.samps.avgcompclass.csv")
 
 
 dbDisconnect(mydb)
