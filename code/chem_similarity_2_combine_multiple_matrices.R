@@ -4,19 +4,21 @@ source("./code/create_pairwiseComps_sampsByComps.R")
 source("./code/chem_similarity_function.R")
 
 # load pairwise.comps/sampsByCompounds files
-#    pairwise.comps.sap <- make_pairwisecomps("K:/DDA/all_inga/sap_network_merged_spec/")
-#    pairwise.comps.phen <- make_pairwisecomps("K:/DDA/all_inga/phen_network_merged_spec/")
+pairwise.comps.sap <- make_pairwisecomps("./data/saponin_network_2017_11_16//")
+pairwise.comps.phen <- make_pairwisecomps("./data/phenolics_network_2017_11_16/")
 
-#    sampsByCompounds <- make_sampsByCompounds("./data/compound_tic_2017_08_02.csv", samps_to_remove = c("COJR", "Zygl"), by_species = FALSE)
-
-#    ampsByCompoundsSap <- sampsByCompounds[,names(sampsByCompounds) %in% names(pairwise.comps.sap)]
-#    sampsByCompoundsPhen <- sampsByCompounds[,names(sampsByCompounds) %in% names(pairwise.comps.phen)]
+sampsByCompounds <- read.csv("./data/filled_samps_by_comps_2017_12_05.csv")
+row.names(sampsByCompounds) <- sampsByCompounds$X
+sampsByCompounds <- sampsByCompounds[names(sampsByCompounds) != "X"]
+sampsByCompounds <- as.data.frame(t(sampsByCompounds))
+sampsByCompoundsSap <- sampsByCompounds[,names(sampsByCompounds) %in% names(pairwise.comps.sap)]
+sampsByCompoundsPhen <- sampsByCompounds[,names(sampsByCompounds) %in% names(pairwise.comps.phen)]
 
 # load any similarity files you want to combine
-chem_similarity_phen <- read.csv("./results/phen_sim_filled_comps_LOG_2017_11_30.csv")
+chem_similarity_phen <- read.csv("./results/phen_sim_filled_comps_3RT_2017_12_05.csv")
 row.names(chem_similarity_phen) <- chem_similarity_phen$X
 chem_similarity_phen <- chem_similarity_phen[,names(chem_similarity_phen) != "X"]
-chem_similarity_sap <- read.csv("./results/sap_sim_filled_comps_LOG_2017_11_30.csv")
+chem_similarity_sap <- read.csv("./results/sap_sim_filled_comps_3RT_2017_12_05.csv")
 row.names(chem_similarity_sap) <- chem_similarity_sap$X
 chem_similarity_sap <- chem_similarity_sap[,names(chem_similarity_sap) != "X"]
 
@@ -44,8 +46,8 @@ comp.class.pcts <- data.frame("sample" = row.names(sampsByCompounds),
                               "species_code" = sapply(1:nrow(sampsByCompoundsPhen), 
                                                       function(x) unlist(strsplit(row.names(sampsByCompoundsPhen)[x], split = "_"))[1]),
                               stringsAsFactors=FALSE)
-comp.class.pcts$logPhen <- log(comp.class.pcts$phenSumTIC)
-comp.class.pcts$logSap <- log(comp.class.pcts$sapSumTIC)
+comp.class.pcts$logPhen <- sqrt(comp.class.pcts$phenSumTIC)
+comp.class.pcts$logSap <- sqrt(comp.class.pcts$sapSumTIC)
 comp.class.pcts$phenTICpct <- comp.class.pcts$phenSumTIC / (comp.class.pcts$phenSumTIC + comp.class.pcts$sapSumTIC)
 comp.class.pcts$sapTICpct <- comp.class.pcts$sapSumTIC / (comp.class.pcts$phenSumTIC + comp.class.pcts$sapSumTIC)
 comp.class.pcts <- join(comp.class.pcts, extr.pct, by="species_code", type="left", match="all")
@@ -69,7 +71,7 @@ pairwise.sap.min <- outer(comp.class.pcts$sap.final.pct, comp.class.pcts$sap.fin
 #pairwise.tyr.1mindiff <- outer(comp.class.pcts$tyr.final.pct, comp.class.pcts$tyr.final.pct, FUN = function(X,Y) 1-abs(X-Y))
 pairwise.tyr.min <- outer(comp.class.pcts$tyr.final.pct, comp.class.pcts$tyr.final.pct, FUN = function(X,Y) sapply(1:length(X), function(i) min(X[i],Y[i])))
 
-pairwise.spp <- chem_similarity_phen*pairwise.phen.min + chem_similarity_sap*pairwise.sap.min + pairwise.tyr.percent*pairwise.tyr.min
+pairwise.spp <- chem_similarity_phen*pairwise.phen.min + chem_similarity_sap*pairwise.sap.min + pairwise.tyr.min
 
 
 dbDisconnect(mydb)
@@ -80,7 +82,7 @@ for(i in 1:nrow(pairwise.spp)) {
   row.names(pairwise.spp)[i] <- paste(row.names(pairwise.spp)[i], species_name, sep = "_")
 }
 
-write.csv(pairwise.spp, "./results/combined_similarity_matrix_only_mincompclass_2017_11_30.csv")
+write.csv(pairwise.spp, "./results/combined_similarity_matrix_3RT_2017_12_07.csv")
 
 
 # create chem similarity tree from similarity matrix (similarity matrix should be named 'pairwise.spp')
@@ -106,11 +108,11 @@ d <-cor(coph4, species_dist)
 e <-cor(coph5, species_dist)
 method <- c("single","ward.D","complete", "centroid", "median")
 mhc<- method[which.max(c(a,b,c,d,e))]
-result_samples <- pvclust(pairwise.spp, method.hclust=mhc, method.dist="correlation", use.cor="pairwise.complete.obs", nboot=1000,parallel=T)
+result_samples <- pvclust(pairwise.spp, method.hclust=mhc, method.dist="correlation", use.cor="pairwise.complete.obs", nboot=100,parallel=T)
 
 # save tree--make sure to give it a name
 dev.new()
 plot(result_samples, cex=1.66, cex.pv=1, lwd=1, float = 0.003)
-dev.copy2pdf(file = "./results/chem_dendrogram_only_mincompclass_2017_11_30.pdf", width = 200, height = 20)
+dev.copy2pdf(file = "./results/chem_dendrogram_3RT_2017_12_07.pdf", width = 200, height = 20)
 dev.off()
 

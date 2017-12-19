@@ -1,6 +1,6 @@
 library(RMySQL)
 
-chem_similarity <- read.csv("./results/similarity_matrix_SQRT_sqrttocombine_2017_12_05.csv")
+chem_similarity <- read.csv("./results/combined_similarity_matrix_3RT_2017_12_07.csv")
 chem_similarity <- chem_similarity[,names(chem_similarity) != "X"]
 row.names(chem_similarity) <- names(chem_similarity)
 
@@ -23,6 +23,7 @@ for(i in 1:nrow(spec_code_species)) {
 }
 table(unlist(spec_code_species$species_name))
 spec_code_species[spec_code_species$species_code == "T05", "species_name"] <- "sapindoides"
+spec_code_species[spec_code_species$species_code %in% c("N65","N67", "M63"), "species_name"] <- "umbellifera"
 
 all_samps.df$species_1 <- unlist(sapply(1:nrow(all_samps.df), function(x) spec_code_species[spec_code_species$species_code == all_samps.df$spec_code_1[x], "species_name"]))
 all_samps.df$species_2 <- unlist(sapply(1:nrow(all_samps.df), function(x) spec_code_species[spec_code_species$species_code == all_samps.df$spec_code_2[x], "species_name"]))
@@ -42,44 +43,67 @@ for(i in 1:nrow(all_samps.df)) {
 }
 
 # throw out outliers??
-all_samps_trim <- all_samps.df[!startsWith(all_samps.df$X1, "LA20b_1745"),]
-all_samps_trim <- all_samps_trim[!startsWith(all_samps_trim$X2, "LA20b_1745"),]
-all_samps_trim <- all_samps_trim[!startsWith(all_samps_trim$X2, "LA9_696"),]
-all_samps_trim <- all_samps_trim[!startsWith(all_samps_trim$X1, "LA9_696"),]
-all_samps_trim <- all_samps_trim[!startsWith(all_samps_trim$X2, "N1_1250"),]
-all_samps_trim <- all_samps_trim[!startsWith(all_samps_trim$X1, "N1_1250"),]
-all_samps_trim <- all_samps_trim[!startsWith(all_samps_trim$X2, "T82_1291"),]
-all_samps_trim <- all_samps_trim[!startsWith(all_samps_trim$X1, "T82_1291"),]
-all_samps_trim <- all_samps_trim[!startsWith(all_samps_trim$X2, "LA43_669"),]
-all_samps_trim <- all_samps_trim[!startsWith(all_samps_trim$X1, "LA43_669"),]
+all_samps.df <- all_samps.df[!startsWith(all_samps.df$X1, "LA20b_1745"),]
+all_samps.df <- all_samps.df[!startsWith(all_samps.df$X2, "LA20b_1745"),]
+all_samps.df <- all_samps.df[!startsWith(all_samps.df$X2, "LA9_696"),]
+all_samps.df <- all_samps.df[!startsWith(all_samps.df$X1, "LA9_696"),]
+all_samps.df <- all_samps.df[!startsWith(all_samps.df$X2, "N1_1250"),]
+all_samps.df <- all_samps.df[!startsWith(all_samps.df$X1, "N1_1250"),]
+all_samps.df <- all_samps.df[!startsWith(all_samps.df$X2, "T82_1291"),]
+all_samps.df <- all_samps.df[!startsWith(all_samps.df$X1, "T82_1291"),]
+all_samps.df <- all_samps.df[!startsWith(all_samps.df$X2, "LA7_691_2"),]
+all_samps.df <- all_samps.df[!startsWith(all_samps.df$X1, "LA7_691_2"),]
+all_samps.df <- all_samps.df[!startsWith(all_samps.df$X2, "M18_612_2"),]
+all_samps.df <- all_samps.df[!startsWith(all_samps.df$X1, "M18_612_2"),]
+all_samps.df <- all_samps.df[!startsWith(all_samps.df$X2, "T86_1257"),]
+all_samps.df <- all_samps.df[!startsWith(all_samps.df$X1, "T86_1257"),]
+all_samps.df <- all_samps.df[!startsWith(all_samps.df$X2, "N4_1473"),]
+all_samps.df <- all_samps.df[!startsWith(all_samps.df$X1, "N4_1473"),]
+all_samps.df <- all_samps.df[!startsWith(all_samps.df$X2, "N4_1472"),]
+all_samps.df <- all_samps.df[!startsWith(all_samps.df$X1, "N4_1472"),]
+all_samps.df <- all_samps.df[!startsWith(all_samps.df$X2, "N31_1471"),]
+all_samps.df <- all_samps.df[!startsWith(all_samps.df$X1, "N31_1471"),]
+all_samps.df <- all_samps.df[!startsWith(all_samps.df$X2, "LA23_1479"),]
+all_samps.df <- all_samps.df[!startsWith(all_samps.df$X1, "LA23_1479"),]
 
 
-all_samps.df <- all_samps_trim
+
+# what do these similarity scores look like for species in sawfly analysis?
+sawfly_species <- c("T67a","IngC", "N42","N29","N37","N38","LA9","T63","T19","N13","N35","N6","T59","LA43","T29","N31","T69","T82","N41","T65","N26","T60","N7","N66","IngG","IngU","T57","N5","LA3","T74","LA32","T23","N21","T76","T35","T33","LA33","N23","N10","LA35","N8","IngF","T20","N25","LA60")
+sawfly_samps <- all_samps.df[all_samps.df$spec_code_1 %in% sawfly_species & all_samps.df$spec_code_2 %in% sawfly_species, ]
+
+all_samps.df_3RT <- all_samps.df
+
+all_samps.df <- all_samps.df_SQRTSQRT
+all_samps.df <- all_samps.df_4RT
+all_samps.df <- all_samps.df_3RT
+all_samps.df <- all_samps.df_SQRT
+all_samps.df <- all_samps.df_LOG
 #dev.new()
 boxplot(all_samps.df[all_samps.df$sample_pair_type == "all_others", "chemdist"],
   all_samps.df[all_samps.df$sample_pair_type == "same_spec_diff_site", "chemdist"],
   all_samps.df[all_samps.df$sample_pair_type == "same_spec_same_site", "chemdist"],
   names = c("all_others", "same species diff site", "same species/site"),
-  main = "similarity calcs using ln(TIC)",
-  ylab = "similarity score")
+  main = "similarity calcs using sqrt(TIC) cw sqrt",
+  ylab = "similarity score",
+  ylim = c(0,1))
 #dev.copy2pdf(file = "./results/sim_scores_by_sample_pair_type_LOGTIC_boxplot.pdf")
 #dev.off()
 
-hist(all_samps.df[all_samps.df$sample_pair_type == "all_others", "chemdist"])
+hist(all_samps.df[all_samps.df$sample_pair_type == "all_others", "chemdist"], xlim=c(0,1), main="Different species similarity using sqrt(TIC)")
 hist(all_samps.df[all_samps.df$sample_pair_type == "same_spec_diff_site", "chemdist"])
-hist(all_samps.df[all_samps.df$sample_pair_type == "same_spec_same_site", "chemdist"])
+hist(all_samps.df[all_samps.df$sample_pair_type == "same_spec_same_site", "chemdist"], xlim = c(0,1), ylim=c(0,500),main = "Same species/site similarity calcs using 4rt(TIC) cw sqrt")
 
-all_samps.df_sqrtsqrt
-all_samps.df_sqrt
-all_samps.df_1mindiff 
-all_samps.df_mincompclass 
-all_samps.df_compclassavg 
+plot(all_samps.df_SQRT$chemdist ~ all_samps.df_LOG$chemdist)
+plot(all_samps.df_SQRT[all_samps.df_SQRT$sample_pair_type == "same_spec_same_site", "chemdist"] ~ all_samps.df_SQRTSQRT[all_samps.df_SQRTSQRT$sample_pair_type == "same_spec_same_site", "chemdist"])
 
-mean(all_samps.df_sqrtsqrt[all_samps.df_sqrtsqrt$sample_pair_type == "same_spec_same_site", "chemdist"])
-mean(all_samps.df_sqrt[all_samps.df_sqrt$sample_pair_type == "same_spec_same_site", "chemdist"])
+curve(x*1, add=TRUE, lwd=2, col="red")
+
+mean(all_samps.df[all_samps.df$sample_pair_type == "same_spec_same_site", "chemdist"])
 
 all_samps.df[all_samps.df$sample_pair_type == "same_spec_same_site" & all_samps.df$chemdist < 0.5, ]
-all_samps.df <- all_samps.df_mincompclass
+all_samps.df[all_samps.df$sample_pair_type == "all_others" & all_samps.df$chemdist > 0.8, ]
+all_samps.df[all_samps.df$sample_pair_type == "same_spec_diff_site" & all_samps.df$chemdist < 0.2, ]
 
 write.csv(all_samps.df[,names(all_samps.df) != "sample_pair_type"], "./results/all_samples_chem_scores_long_format.csv")
 
@@ -97,11 +121,15 @@ for(i in 1:length(species)) {
 hist(species_variation$avg_score)
 hist(species_variation$score_stdev)
 
-species_variation[species_variation$avg_score > 0.87,]
-species_variation[species_variation$score_stdev > 0.2,]
+species_variation[species_variation$avg_score < 0.6,]
+species_variation[species_variation$score_stdev > 0.15,]
 
-all_samps_same_species[all_samps_same_species$spec_code_1 == "N1", ]
-hist(all_samps_same_species[all_samps_same_species$spec_code_1 == "N1", "chemdist"])
+all_samps_same_species[all_samps_same_species$spec_code_1 == "IngU", ]
+hist(all_samps_same_species[all_samps_same_species$spec_code_1 == "IngU", "chemdist"])
+comp.class.pcts[startsWith(comp.class.pcts$sample, "LA3_"),]
+chem_similarity_phen[startsWith(names(chem_similarity_phen), "LA10_"), startsWith(names(chem_similarity_phen), "T58")]
+chem_similarity_sap[startsWith(names(chem_similarity_sap), "LA10_"), startsWith(names(chem_similarity_sap), "T58")]
+chem_similarity[startsWith(names(chem_similarity_phen), "T05_"), startsWith(names(chem_similarity_phen), "T58")]
 
 plot(species_variation$avg_score ~ species_variation$score_stdev)
 

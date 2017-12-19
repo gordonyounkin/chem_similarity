@@ -2,12 +2,11 @@ import imp
 
 ct = imp.load_source('ct', './/code//build_compound_table.py')
 
-# if ftrd is correct in new database
-ftrd = ct.get_ftrd()
+# if ftrd is correct in new database (it's not currently)
+#ftrd = ct.get_ftrd()
 
-# if not correct in new database, load file from old as in "xfer_ftrd_old_to_new_db.py"
+# if not correct in new database, load file from old
 import pymysql
-import compound_table as ct
 
 mydb = pymysql.connect(host='mysql.chpc.utah.edu',
                        user='u6009010',
@@ -21,9 +20,9 @@ with mydb.cursor() as cursor:
     cursor.execute(sql)
     result = cursor.fetchall()
 
-ftrd1 = []
+ftrd = []
 for row in result:
-    ftrd1.append({
+    ftrd.append({
         "RT": float(row["RT"]),
         "PC_ID": row["PC_ID"],
         "TIC": float(row["TIC"]),
@@ -34,8 +33,9 @@ for row in result:
     })
 
 # build feature table
-feature_table = ct.build_feature_table(ftrd1, mz_error = 0.01, rt_error = 0.3)
+feature_table = ct.build_feature_table(ftrd, mz_error=0.01, rt_error=0.3)
 
+# write csv of feature table
 with open("K://GY_LAB_FILES//github_repositories//chem_similarity//data//samples_with_polar_features_mzrt.csv", 'w') as file:
     file.write("feature_number,sample,rt,mz,PC_ID,TIC\n")
     for feature in feature_table:
@@ -46,12 +46,11 @@ with open("K://GY_LAB_FILES//github_repositories//chem_similarity//data//samples
              feature_table[feature]["PC_IDs"][feature_table[feature]["sample"].index(sample)],\
              feature_table[feature]["TIC"][feature_table[feature]["sample"].index(sample)]))  
 
-
 pc_id_table = ct.build_pc_id(feature_table)
-pc_id_table_orig = pc_id_table
 
-compound_table = ct.build_compound_table(pc_id_table, min_cos_score = 0.5)
+compound_table = ct.build_compound_table(pc_id_table, min_cos_score=0.5)
 
+# write csv of compound table
 with open("K://GY_LAB_FILES//github_repositories//chem_similarity//data//polar_compound_feature_table.csv", "w") as file:
     file.write("compound_number,feature_number,TIC,mz,rt\n")
     for compound in compound_table:
@@ -61,14 +60,14 @@ with open("K://GY_LAB_FILES//github_repositories//chem_similarity//data//polar_c
             feature_table[feature]["avg_mz"], feature_table[feature]["avg_rt"]))
 
 # or read in compound table if it already exists:
-with open("K://GY_LAB_FILES//github_repositories//chem_similarity//data//compound_feature_table.csv", "r") as file:
+with open("K://GY_LAB_FILES//github_repositories//chem_similarity//data//polar_compound_feature_table.csv", "r") as file:
     compound_table_temp = file.readlines()
 
 compound_table = {}
 for row in compound_table_temp:
     compound = row.split(",")[0]
     if compound == 'compound_number':
-        next
+        continue
     else:
         compound = int(compound)
         if compound in compound_table:
@@ -85,19 +84,20 @@ for row in compound_table_temp:
             }
 
 # load filled features from R Code:
-with open("K://GY_LAB_FILES//github_repositories//chem_similarity//results//LA4_filled_features_ppm_2017_11_17.csv", "r") as file:
+with open("K://GY_LAB_FILES//github_repositories//chem_similarity//data//samples_with_polar_features_mzrt.csv", "r") as file:
     filled_features_temp = file.readlines()
 
 filled_features = {}
 for row in filled_features_temp:
     sample = row.split(",")[4].split("\n")[0].replace('"','')
     if sample == 'sample_name':
-        next
+        continue
     else:
         if sample in filled_features:
-            filled_features[sample]["feature_number"] += [int(row.split(",")[0])]
-            filled_features[sample]["TIC"] += [float(row.split(",")[1])]
-            filled_features[sample]["actual_rt"] += [float(row.split(",")[3])]
+            if int(row.split(",")[0]) not in filled_features[sample]["feature_number"]:
+                filled_features[sample]["feature_number"] += [int(row.split(",")[0])]
+                filled_features[sample]["TIC"] += [float(row.split(",")[1])]
+                filled_features[sample]["actual_rt"] += [float(row.split(",")[3])]
         else:
             filled_features[sample] = {
                 "feature_number": [int(row.split(",")[0])],
@@ -105,60 +105,19 @@ for row in filled_features_temp:
                 "actual_rt": [float(row.split(",")[3])]
             }
 
-# calculate percent of TIC for features in each compound
-for compound in compound_table:
-    compound_table[compound]["feature_pcts"] = [x / sum(compound_table[compound]["TICs"]) \
-     for x in compound_table[compound]["TICs"]]
-    compound_table[compound]["rel_feature_abund"] = [x / max(compound_table[compound]["feature_pcts"]) \
-     for x in compound_table[compound]["feature_pcts"]]
+## calculate percent of TIC for features in each compound
+#for compound in compound_table:
+#    compound_table[compound]["feature_pcts"] = [x / sum(compound_table[compound]["TICs"]) \
+#     for x in compound_table[compound]["TICs"]]
+#    compound_table[compound]["rel_feature_abund"] = [x / max(compound_table[compound]["feature_pcts"]) \
+#     for x in compound_table[compound]["feature_pcts"]]
 
-filled_compounds_05 = ct.fill_compounds(filled_features, compound_table, min_cos_score = 0.5)
-filled_compounds_03 = ct.fill_compounds(filled_features, compound_table, min_cos_score = 0.3)
-# changed build_compound_table_code to require sample to contain at least 20% of peaks to have a compound.
-filled_comps_03_min02 = ct.fill_compounds(filled_features, compound_table, min_cos_score = 0.3)
-# changed parameters for fill features (using 25ppm error for mz, at least 1000 TIC rather than 1500)
-filled_comps_ppm = ct.fill_compounds(filled_features, compound_table, min_cos_score = 0.3)
-# change parameters for fill compounds -- must contain at least 10% of features to have a compound.
-# 20% was weeding out too many that had a compound at low abundance (see compound 502)
-filled_comps_ppm_min01 = ct.fill_compounds(filled_features, compound_table, min_cos_score = 0.3)
-# change parameters to not remove features after they are used once.
-filled_comps = ct.fill_compounds(filled_features, compound_table, min_cos_score = 0.3)
-filled_comp_2 = ct.fill_compounds(filled_features, compound_table, min_cos_score = 0.3)
+filled_comps = ct.fill_compounds(filled_features, compound_table)
 
-with open("K://GY_LAB_FILES//github_repositories//chem_similarity//data//LA4_filled_compound_table_2017_11_30.csv", "w") as file:
+# write csv of final compound table
+with open("K://GY_LAB_FILES//github_repositories//chem_similarity//data//polar_compound_table_2017_12_15.csv", "w") as file:
     file.write("compound_sample,compound_number,TIC\n")
-    for sample in filled_comp_2:
-        for i, compound in enumerate(filled_comp_2[sample]["compound"]):
+    for sample in filled_comps:
+        for i, compound in enumerate(filled_comps[sample]["compound"]):
             file.write("%s,%d,%f\n" % (sample, compound, \
-            filled_comp_2[sample]["TIC"][i]))
-
-
-filled_compounds_1[filled_compounds_1.keys()[0]]
-
-sample = filled_features.keys()[2]
-compound = 500
-min_cos_score = 0.3
-filled_compounds = {}
-
-compound_table[841]
-[x for x in compound_table.keys() if 11185 in compound_table[x]["features"]]
-
-[x for x in filled_compounds_05.keys() if 500 in filled_compounds_05[x]["compound"]]
-[x for x in filled_compounds_03.keys() if 502 in filled_compounds_03[x]["compound"]]
-[x for x in filled_comps_03_min02.keys() if 502 in filled_comps_03_min02[x]["compound"]]
-[x for x in filled_comps_ppm.keys() if 1 in filled_comps_ppm[x]["compound"]]
-[x for x in filled_comps_ppm_min01.keys() if 898 in filled_comps_ppm_min01[x]["compound"]]
-filled_comps_03_min02[filled_comps_03_min02.keys()[0]]
-filled_comps_ppm_min01["T76_2163_undiluted"]
-compound_table[502]
-# compound 1 orginally came from pc group LA17_3
-# which is NOT the same compound as is in most of the samples that are showing up as containing compound 1. How was it hijacked?
-pc_id_table["LA17_3"]
-
-
-
-filled_compounds = filled_compounds_1
-filled_compounds['IngU_1933']["compound"]
-filled_compounds['IngU_1402_2']["compound"]
-list(set(filled_comps_ppm_min01['IngU_1933']["compound"]).intersection(filled_comps_ppm_min01['IngU_1402_2']["compound"]))
-compound_table[898]
+            filled_comps[sample]["TIC"][i]))
