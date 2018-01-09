@@ -84,7 +84,7 @@ for(i in 1:nrow(pairwise.spp)) {
 
 write.csv(pairwise.spp, "./results/combined_similarity_matrix_3RT_2017_12_07.csv")
 
-
+pairwise.spp <- old_sim
 # create chem similarity tree from similarity matrix (similarity matrix should be named 'pairwise.spp')
 library(vegan)
 library(pvclust)
@@ -108,11 +108,11 @@ d <-cor(coph4, species_dist)
 e <-cor(coph5, species_dist)
 method <- c("single","ward.D","complete", "centroid", "median")
 mhc<- method[which.max(c(a,b,c,d,e))]
-result_samples <- pvclust(pairwise.spp, method.hclust=mhc, method.dist="correlation", use.cor="pairwise.complete.obs", nboot=100,parallel=T)
+result_samples <- pvclust(pairwise.spp, method.hclust=mhc, method.dist="correlation", use.cor="pairwise.complete.obs", nboot=1000,parallel=T)
 
 # save tree--make sure to give it a name
 dev.new()
 plot(result_samples, cex=1.66, cex.pv=1, lwd=1, float = 0.003)
-dev.copy2pdf(file = "./results/chem_dendrogram_3RT_2017_12_07.pdf", width = 200, height = 20)
+dev.copy2pdf(file = "./results/chem_dendrogram_LA_OLD_2017_12_16.pdf", width = 20, height = 20)
 dev.off()
 

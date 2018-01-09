@@ -5,38 +5,64 @@ library(xcms)
 library(reshape2)
 source("./code/create_pairwiseComps_sampsByComps.R")
 
-comp_table <- read.csv("./data/polar_compound_table_2017_12_15.csv")
-head(comp_table)
-comp_table_2 <- reshape2::dcast(comp_table, compound_number ~ TIC)
+mydb = dbConnect(MySQL(), user='u6009010', password='3UaUhf7a', dbname='inga_2015_06_01', host='mysql.chpc.utah.edu')
+
 comp_table <- make_sampsByCompounds("./data/polar_compound_table_2017_12_15.csv")
+comp_table_2 <- as.matrix(comp_table)
+comp_table_2[comp_table_2 < 1000] <- 0
+comp_table_2[comp_table_2 != 0] <- 1
+comp_table_3 <- as.data.frame(t(comp_table_2))
+comp_table_3$keep <- character(nrow(comp_table_3))
 
+# only include compounds that are present in at least 3/5 of the samples of any one species
+for(i in 1:ncol(comp_table_3)) {
+  EN <- gsub("DN","", unlist(strsplit(names(comp_table_3[i]), split="_"))[1])
+  species_code <- dbGetQuery(mydb, paste("SELECT species_code FROM `Extraction` WHERE Extraction_Number = ", EN, sep=""))
+  names(comp_table_3)[i] <- paste("DN", EN, "_", species_code, sep="")
+}
 
-missTIC_2 <- dcast(missTIC, ct_compound_number ~ ct_compound_sample)
-row.names(missTIC_2) <- missTIC_2$ct_compound_number
-missTIC_2.1 <- missTIC_2[,2:ncol(missTIC_2)]
-missTIC_3 <- missTIC_2.1[sapply(1:nrow(missTIC_2.1), function(x) max(missTIC_2.1[x,]))>=5000,]
-if(nrow(missTIC_3) < 1) next
-missTIC_4 <- data.frame(missTIC_3>=5000)
-missTIC_4.1 <- missTIC_4
+species_compounds <- data.frame("species" = sapply(1:ncol(comp_table_3), function(x) unlist(strsplit(names(comp_table_3)[x], split="_"))[2]), "present" = numeric(ncol(comp_table_3)))
 
-samples <- data.frame("name"=unique(missTIC$ct_compound_sample), "ncomps"=colSums(missTIC_4), "removable"=TRUE)
+for(i in 1:nrow(comp_table_3)) {
+  species_compounds$present <- comp_table_3[i, names(comp_table_3) != "keep", drop=TRUE]
+  abundances  <- table(species_compounds[species_compounds$present == 1, "species"])
+  proportions <- abundances / table(species_compounds$species)
+  if(max(proportions) >= 0.6 & max(abundances > 2)) comp_table_3$keep[i] <- TRUE
+  else comp_table_3$keep[i] <- FALSE
+  }
+
+comp_table_4 <- comp_table_3[comp_table_3$keep == TRUE, names(comp_table_3) != "keep"]
+
+rowSums(comp_table_4)
+
+samples <- data.frame("name"=names(comp_table_4), "ncomps"=colSums(comp_table_4>0), "removable"=TRUE, stringsAsFactors = FALSE)
 
 while( sum(!samples$removable) <= (nrow(samples)-1) & nrow(samples)>1 ) {
+  print(nrow(samples))
   for(i in 1:nrow(samples)) {
-    samples$removable[i] <- sum(rowSums(data.frame(missTIC_4.1[,-i]))>0) == sum(rowSums(missTIC_4.1)>0)
+    samples$removable[i] <- sum(rowSums(data.frame(comp_table_4[,-i]))>0) == sum(rowSums(comp_table_4)>0)
   }
   if( sum(!samples$removable) <= (nrow(samples)-1) ) {
-    missTIC_4.1 <- missTIC_4.1[,names(missTIC_4.1)!=samples[samples$removable==TRUE,"name"][which.min(samples[samples$removable==TRUE,"ncomps"])]]
+    comp_table_4 <- comp_table_4[,names(comp_table_4)!=samples[samples$removable==TRUE,"name"][which.min(samples[samples$removable==TRUE,"ncomps"])]]
     samples <- samples[rownames(samples)!=samples[samples$removable==TRUE,"name"][which.min(samples[samples$removable==TRUE,"ncomps"])],]
   }
 }
-missTIC_5 <- data.frame(missTIC_3[,names(missTIC_3)%in%samples$name])
-names(missTIC_5) <- names(missTIC_3[names(missTIC_3)%in%samples$name])
-row.names(missTIC_5) <- row.names(missTIC_3)
-missTIC_5$maxSample <- sapply(1:nrow(missTIC_5), function(x) names(missTIC_5)[which.max(missTIC_5[x,])])
-missTIC_6 <- data.frame("Compound_Number"=row.names(missTIC_5),"sample"=missTIC_5$maxSample, "species"=species[n])
-all_samp_targets <- rbind(all_samp_targets, missTIC_6)
-}
+
+
+head(comp_table_4)
+rowSums(comp_table_4)
+
+
+
+
+
+comp_table_5 <- data.frame(comp_table_4[,names(comp_table_4)%in%samples$name])
+names(comp_table_5) <- names(comp_table_4[names(comp_table_4)%in%samples$name])
+row.names(comp_table_5) <- row.names(comp_table_4)
+comp_table_5$maxSample <- sapply(1:nrow(comp_table_5), function(x) names(comp_table_5)[which.max(comp_table_5[x,])])
+comp_table_6 <- data.frame("Compound_Number"=row.names(comp_table_5),"sample"=comp_table_5$maxSample, "species"=species[n])
+all_samp_targets <- rbind(all_samp_targets, comp_table_6)
+
 
 msms_sample_targets <- merge(dda_misses, all_samp_targets, by=c("Compound_Number","species"), all.x=FALSE, all.y=TRUE)
 msms_sample_targets$mz <- as.numeric(msms_sample_targets$mz)
