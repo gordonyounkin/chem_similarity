@@ -41,7 +41,7 @@ def build_feature_table(raw_data, mz_error=0.01, rt_error=0.3):
         mz = datum["MZ"]
         rt = datum["RT"]
         sample = datum["sample"]
-        status = "not matched"
+        matched = False
         for feature in feature_table.keys():
             if abs(feature_table[feature]["avg_mz"] - mz) <= mz_error and \
                 abs(feature_table[feature]["avg_rt"] - rt) <= rt_error:
@@ -54,9 +54,9 @@ def build_feature_table(raw_data, mz_error=0.01, rt_error=0.3):
                 feature_table[feature]["avg_rt"] = sum(feature_table[feature]["rt"])/ \
                  len(feature_table[feature]["rt"])
                 feature_table[feature]["TIC"] += [datum["TIC"]]
-                status = "matched"
+                matched = True
                 break
-        if status == "not matched":
+        if not matched:
             current_feature_number += 1
             feature_table[current_feature_number] = {
                 "mz": [mz],
@@ -80,7 +80,7 @@ def build_pc_id(feature_table):
     pc_id_table = {}
 
     for feature in feature_table.keys():
-        for pcid in list(set(feature_table[feature]["PC_IDs"])):
+        for pcid in set(feature_table[feature]["PC_IDs"]):
             tics = [feature_table[feature]["TIC"][i] for i, x in \
              enumerate(feature_table[feature]["PC_IDs"]) if x == pcid]
             if pcid in pc_id_table:
@@ -137,7 +137,7 @@ def build_compound_table(pc_id_table, min_cos_score=0.5):
     current_compound_number = 0
 
     for pcid in sorted_pc_ids:
-        status = "not_matched"
+        matched = False
         for compound in compound_table:
             if cosine_score(pc_id_table[pcid], compound_table[compound],\
              abundance="TICs", features="features") > min_cos_score:
@@ -150,18 +150,20 @@ def build_compound_table(pc_id_table, min_cos_score=0.5):
                         compound_table[compound]["features"] += [feature]
                         compound_table[compound]["TICs"] +=\
                          [pc_id_table[pcid]["TICs"][pc_id_table[pcid]["features"].index(feature)]]
-                status = "matched"
+                matched = True
                 break
-        if status == "not_matched":
+        if not matched:
             current_compound_number += 1
             compound_table[current_compound_number] = {
                 "features": list(pc_id_table[pcid]["features"]),
                 "TICs": list(pc_id_table[pcid]["TICs"])
             }
     for compound in compound_table:
-        compound_table[compound]["feature_pcts"] = [x / sum(compound_table[compound]["TICs"]) \
+        total_tic = sum(compound_table[compound]["TICs"])
+        compound_table[compound]["feature_pcts"] = [x / total_tic \
         for x in compound_table[compound]["TICs"]]
-        compound_table[compound]["rel_abund"] = [x / max(compound_table[compound]["feature_pcts"]) \
+        max_tic = max(compound_table[compound]["feature_pcts"])
+        compound_table[compound]["rel_abund"] = [x / max_tic \
         for x in compound_table[compound]["feature_pcts"]]
 
     return compound_table
@@ -180,18 +182,55 @@ def fill_compounds(filled_features, compound_table):
 
     for sample in filled_features:
         for compound in compound_table:
-            shared_features = [x for x in filled_features[sample]["feature_number"] if \
-             x in compound_table[compound]["features"]]
+            top_feature = compound_table[compound]["features"][compound_table[compound]["rel_abund"].index(1.0)]
+            if top_feature in filled_features[sample]["feature_number"]:
+                actual_rt = filled_features[sample]["actual_rt"]\
+                [filled_features[sample]["feature_number"].index(top_feature)]
+            else:
+                continue
+            if not 1.0 < actual_rt < 32.0:
+                continue
+            shared_features = [x for i, x in enumerate(filled_features[sample]["feature_number"]) if \
+             x in compound_table[compound]["features"] and \
+             abs(filled_features[sample]["actual_rt"][i] - actual_rt) < 0.1]
             major_features = [x for i, x in enumerate(compound_table[compound]["features"]) if \
-             compound_table[compound]["TICs"][i] > 0.75]
-            shared_major_features = [x for x in filled_features[sample]["feature_number"] if \
+             compound_table[compound]["rel_abund"][i] > 0.8]
+            shared_major_features = [x for x in shared_features if \
              x in major_features]
-            if float(len(shared_major_features)) / float(len(major_features)) == 1:
+            if len(shared_major_features) == len(major_features):
                 sample_compound = {
                     "features": shared_features,
                     "TICs": [filled_features[sample]["TIC"]\
+                     [filled_features[sample]["feature_number"].index(x)] for x in shared_features],
+                    "actual_rt": [filled_features[sample]["actual_rt"]\
                      [filled_features[sample]["feature_number"].index(x)] for x in shared_features]
                 }
+                top_feature_tic = sample_compound["TICs"][sample_compound["features"].index(top_feature)]
+                sample_compound["rel_abund"] = [x / top_feature_tic for x in sample_compound["TICs"]]
+                actual_rel_abund = [compound_table[compound]["rel_abund"][compound_table[compound]["features"].index(x)]\
+                 for x in sample_compound["features"]]
+                feature_within_range = [0.33 < actual_rel_abund[i] / sample_compound["rel_abund"][i] < 3 for i, x in enumerate(actual_rel_abund)]
+                if False in feature_within_range:
+                    sample_compound_2 = {
+                        "features": [x for i, x in enumerate(sample_compound["features"]) if feature_within_range[i]],
+                         "TICs": [x for i, x in enumerate(sample_compound["TICs"]) if feature_within_range[i]]
+                    }
+                    sample_compound = sample_compound_2
+
+                #sample_compound["rel_abund"] = [x / max(sample_compound["TICs"]) for x in sample_compound["TICs"]]
+                #shared_rel_abund = \
+                # [sample_compound["rel_abund"][sample_compound["features"].index(x)] for x in shared_major_features]
+                
+                #if False in [x > 0.33 for x in shared_rel_abund]:
+                #    low_abund_feature = shared_major_features[shared_rel_abund.index(min(shared_rel_abund))]
+                #    low_abund = sample_compound["TICs"][sample_compound["features"].index(low_abund_feature)]
+                #    sample_compound_2 = {
+                #        "features": [x for i, x in enumerate(sample_compound["features"]) if \
+                #         sample_compound["TICs"][i] < 3 * low_abund],
+                #         "TICs": [x for i, x in enumerate(sample_compound["TICs"]) if \
+                #         sample_compound["TICs"][i] < 3 * low_abund]
+                #    }
+                    
                 if cosine_score(compound_table[compound], sample_compound, abundance="TICs", features="features")\
                 >= 0.3:
                     if sample in filled_compounds:
@@ -202,11 +241,12 @@ def fill_compounds(filled_features, compound_table):
                             "compound": [compound],
                             "TIC": [sum(sample_compound["TICs"])]
                         }
-                        filled_features[sample]["TIC"] = [x for i, x in \
-                        enumerate(filled_features[sample]["TIC"]) if i not in \
-                        [filled_features[sample]["feature_number"].index(k) for k in major_features]]
-                        filled_features[sample]["feature_number"] = [x for i, x in \
-                        enumerate(filled_features[sample]["feature_number"]) if i not in \
-                        [filled_features[sample]["feature_number"].index(k) for k in major_features]]
+
+                    fields = ["TIC", "actual_rt", "feature_number"]
+
+                    used_feature_idx = [filled_features[sample]["feature_number"].index(k) for k in sample_compound["features"]]
+                    for field in fields:
+                        filled_features[sample][field] = [x for i, x in \
+                        enumerate(filled_features[sample][field]) if i not in used_feature_idx]
 
     return filled_compounds

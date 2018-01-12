@@ -1,6 +1,6 @@
 import imp
-
-ct = imp.load_source('ct', './/code//build_compound_table.py')
+import build_compound_table as ct
+# ct = imp.load_source('ct', './/code//build_compound_table.py')
 
 # if ftrd is correct in new database (it's not currently)
 #ftrd = ct.get_ftrd()
@@ -16,7 +16,7 @@ mydb = pymysql.connect(host='mysql.chpc.utah.edu',
                        cursorclass=pymysql.cursors.DictCursor)
 
 with mydb.cursor() as cursor:
-    sql = "SELECT * FROM `feature_table_raw_data_C18`"
+    sql = "SELECT * FROM `feature_table_raw_data_C18`" 
     cursor.execute(sql)
     result = cursor.fetchall()
 
@@ -44,7 +44,7 @@ with open("K://GY_LAB_FILES//github_repositories//chem_similarity//data//samples
              feature_table[feature]["rt"][feature_table[feature]["sample"].index(sample)],\
              feature_table[feature]["mz"][feature_table[feature]["sample"].index(sample)],\
              feature_table[feature]["PC_IDs"][feature_table[feature]["sample"].index(sample)],\
-             feature_table[feature]["TIC"][feature_table[feature]["sample"].index(sample)]))  
+             feature_table[feature]["TIC"][feature_table[feature]["sample"].index(sample)]))
 
 pc_id_table = ct.build_pc_id(feature_table)
 
@@ -60,7 +60,7 @@ with open("K://GY_LAB_FILES//github_repositories//chem_similarity//data//polar_c
             feature_table[feature]["avg_mz"], feature_table[feature]["avg_rt"]))
 
 # or read in compound table if it already exists:
-with open("K://GY_LAB_FILES//github_repositories//chem_similarity//data//polar_compound_feature_table.csv", "r") as file1:
+with open("K://GY_LAB_FILES//github_repositories//chem_similarity//data/compound_feature_table.csv", "r") as file1:
     compound_table_temp = file1.readlines()
 
 compound_table = {}
@@ -82,6 +82,12 @@ for row in compound_table_temp:
                 "avg_rt": [float(row.split(",")[4].split("\n")[0].replace('"',''))],
                 "avg_mz": [float(row.split(",")[3])]
             }
+for compound in compound_table:
+        compound_table[compound]["feature_pcts"] = [x / sum(compound_table[compound]["TICs"]) \
+        for x in compound_table[compound]["TICs"]]
+        compound_table[compound]["rel_abund"] = [x / max(compound_table[compound]["feature_pcts"]) \
+        for x in compound_table[compound]["feature_pcts"]]
+
 
 # load filled features from R Code:
 with open("K://GY_LAB_FILES//github_repositories//chem_similarity//results//all_inga_filled_features_ppm_2017_12_05.csv", "r") as file1:
@@ -115,7 +121,7 @@ for row in filled_features_temp:
 filled_comps = ct.fill_compounds(filled_features, compound_table)
 
 # write csv of final compound table
-with open("K://GY_LAB_FILES//github_repositories//chem_similarity//data//polar_compound_table_2017_12_15.csv", "w") as file1:
+with open("K://GY_LAB_FILES//github_repositories//chem_similarity//data//compound_table_2018_01_11.csv", "w") as file1:
     file1.write("compound_sample,compound_number,TIC\n")
     for sample in filled_comps:
         for i, compound in enumerate(filled_comps[sample]["compound"]):

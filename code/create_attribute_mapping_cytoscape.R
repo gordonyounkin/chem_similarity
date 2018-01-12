@@ -32,7 +32,7 @@ nodes <- nodes[!nodes %in% contaminants$compound_number]
 
 # create sampsByCompounds table
 # load compound tic table (created in python)
-compound_tic_table <- read.csv("./data/filled_compound_table_2017_12_05.csv") 
+compound_tic_table <- read.csv("./data/compound_table_2018_01_11.csv") 
 sampsByCompounds <- dcast(compound_tic_table, compound_number  ~ compound_sample, value.var = "TIC")
 head(compound_tic_table)
 
@@ -122,7 +122,7 @@ for(i in 1:nrow(attribute_file)) {
    }}}
 
 # write files to use in cytoscape
-write.table(attribute_file,"./data/cytoscape_all_inga_C18_neg/attribute_file.out", sep=",",row.names=FALSE, col.names = TRUE)
+write.table(attribute_file,"./data/cytoscape_all_inga_C18_neg/attribute_file_3.out", sep=",",row.names=FALSE, col.names = TRUE)
 write.table(compound_network, "./data/cytoscape_all_inga_C18_neg/compound_network.tsv", sep = "\t", row.names=FALSE)
 
 
